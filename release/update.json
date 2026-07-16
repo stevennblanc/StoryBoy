@@ -1,0 +1,6 @@
+{
+  "versionCode": 1,
+  "versionName": "0.1.0",
+  "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
+  "releaseNotes": "Initial StoryBoy Android foundation."
+}
