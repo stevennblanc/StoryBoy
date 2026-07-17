@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -91,7 +92,8 @@ private fun StoryReaderScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(UiConfig.ThemeColors.ReaderPageCol)
+            .background(ThemeManager.colors.ReaderPageCol)
+            .safeDrawingPadding()
             .padding(UiConfig.Spacing.ScreenPadding),
     ) {
         when {
@@ -159,9 +161,9 @@ private fun ReaderContent(
             Text(
                 text = node.text,
                 style = MaterialTheme.typography.bodyLarge.copy(
-                    color = UiConfig.ThemeColors.ReaderText,
+                    color = ThemeManager.colors.ReaderText,
                     fontFamily = UiConfig.Fonts.SecondaryFontFamily,
-                    lineHeight = UiConfig.Fonts.ReaderLineHeight,
+                    lineHeight = UiConfig.Fonts.ReaderLineHeight * ThemeManager.fontScale,
                 ),
             )
 
@@ -187,7 +189,7 @@ private fun ReaderContent(
             } else if (node.choices.isEmpty()) {
                 Text(
                     text = "The End",
-                    style = MaterialTheme.typography.headlineMedium.copy(color = UiConfig.ThemeColors.ReaderText),
+                    style = MaterialTheme.typography.headlineMedium.copy(color = ThemeManager.colors.ReaderText),
                 )
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer)) {
@@ -215,7 +217,7 @@ private fun StoryInlineImage(image: StoryImage) {
                     .fillMaxWidth()
                     .border(
                         width = UiConfig.Controls.FocusThickness,
-                        color = UiConfig.ThemeColors.ReaderDivider,
+                        color = ThemeManager.colors.ReaderDivider,
                         shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
                     ),
                 contentScale = ContentScale.FillWidth,
@@ -223,7 +225,7 @@ private fun StoryInlineImage(image: StoryImage) {
             if (image.caption.isNotBlank()) {
                 Text(
                     text = image.caption,
-                    style = MaterialTheme.typography.bodyMedium.copy(color = UiConfig.ThemeColors.ReaderMutedText),
+                    style = MaterialTheme.typography.bodyMedium.copy(color = ThemeManager.colors.ReaderMutedText),
                 )
             }
         }
@@ -258,8 +260,8 @@ private fun BattlePanel(
                 onClick = onRoll,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = UiConfig.ThemeColors.ReaderChoiceCol,
-                    contentColor = UiConfig.ThemeColors.ReaderText,
+                    containerColor = ThemeManager.colors.ReaderChoiceCol,
+                    contentColor = ThemeManager.colors.ReaderText,
                 ),
             ) {
                 Text("Roll")
@@ -288,11 +290,11 @@ private fun BattleLine(
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyMedium.copy(color = UiConfig.ThemeColors.ReaderMutedText),
+            style = MaterialTheme.typography.bodyMedium.copy(color = ThemeManager.colors.ReaderMutedText),
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyMedium.copy(color = UiConfig.ThemeColors.ReaderText),
+            style = MaterialTheme.typography.bodyMedium.copy(color = ThemeManager.colors.ReaderText),
         )
     }
 }
@@ -344,7 +346,7 @@ private fun PuzzleInput(
     Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer)) {
         Text(
             text = question,
-            style = MaterialTheme.typography.headlineMedium.copy(color = UiConfig.ThemeColors.ReaderText),
+            style = MaterialTheme.typography.headlineMedium.copy(color = ThemeManager.colors.ReaderText),
         )
         OutlinedTextField(
             value = answer,
@@ -358,8 +360,8 @@ private fun PuzzleInput(
             enabled = answer.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
-                containerColor = UiConfig.ThemeColors.ReaderChoiceCol,
-                contentColor = UiConfig.ThemeColors.ReaderText,
+                containerColor = ThemeManager.colors.ReaderChoiceCol,
+                contentColor = ThemeManager.colors.ReaderText,
             ),
         ) {
             Text("Submit")
@@ -387,7 +389,7 @@ private fun ReaderTopBar(
         }
         Text(
             text = title,
-            style = MaterialTheme.typography.bodyMedium.copy(color = UiConfig.ThemeColors.ReaderMutedText),
+            style = MaterialTheme.typography.bodyMedium.copy(color = ThemeManager.colors.ReaderMutedText),
         )
         Row {
             TextButton(onClick = onInventory, enabled = inventoryCount > 0) {
@@ -429,10 +431,10 @@ private fun ReaderCollectionPanel(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(UiConfig.ThemeColors.ReaderChoiceCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
+            .background(ThemeManager.colors.ReaderChoiceCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
             .border(
                 width = UiConfig.Controls.FocusThickness,
-                color = UiConfig.ThemeColors.ReaderDivider,
+                color = ThemeManager.colors.ReaderDivider,
                 shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
             )
             .padding(UiConfig.Spacing.ListBuffer),
@@ -440,7 +442,7 @@ private fun ReaderCollectionPanel(
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.headlineMedium.copy(color = UiConfig.ThemeColors.ReaderText),
+            style = MaterialTheme.typography.headlineMedium.copy(color = ThemeManager.colors.ReaderText),
         )
         content()
     }
@@ -454,12 +456,12 @@ private fun CollectionItem(
     Column {
         Text(
             text = title,
-            style = MaterialTheme.typography.labelLarge.copy(color = UiConfig.ThemeColors.ReaderText),
+            style = MaterialTheme.typography.labelLarge.copy(color = ThemeManager.colors.ReaderText),
         )
         if (description.isNotBlank()) {
             Text(
                 text = description,
-                style = MaterialTheme.typography.bodyMedium.copy(color = UiConfig.ThemeColors.ReaderMutedText),
+                style = MaterialTheme.typography.bodyMedium.copy(color = ThemeManager.colors.ReaderMutedText),
             )
         }
     }
@@ -485,12 +487,12 @@ private fun MapPicker(
                     .fillMaxWidth()
                     .border(
                         width = UiConfig.Controls.FocusThickness,
-                        color = UiConfig.ThemeColors.ReaderDivider,
+                        color = ThemeManager.colors.ReaderDivider,
                         shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
                     ),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = UiConfig.ThemeColors.ReaderChoiceCol,
-                    contentColor = UiConfig.ThemeColors.ReaderText,
+                    containerColor = ThemeManager.colors.ReaderChoiceCol,
+                    contentColor = ThemeManager.colors.ReaderText,
                 ),
             ) {
                 Column(
@@ -501,7 +503,7 @@ private fun MapPicker(
                     if (location.description.isNotBlank()) {
                         Text(
                             text = location.description,
-                            style = MaterialTheme.typography.bodyMedium.copy(color = UiConfig.ThemeColors.ReaderMutedText),
+                            style = MaterialTheme.typography.bodyMedium.copy(color = ThemeManager.colors.ReaderMutedText),
                         )
                     }
                 }
@@ -521,12 +523,12 @@ private fun ChoiceButton(
             .fillMaxWidth()
             .border(
                 width = UiConfig.Controls.FocusThickness,
-                color = UiConfig.ThemeColors.ReaderDivider,
+                color = ThemeManager.colors.ReaderDivider,
                 shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
             ),
         colors = ButtonDefaults.buttonColors(
-            containerColor = UiConfig.ThemeColors.ReaderChoiceCol,
-            contentColor = UiConfig.ThemeColors.ReaderText,
+            containerColor = ThemeManager.colors.ReaderChoiceCol,
+            contentColor = ThemeManager.colors.ReaderText,
         ),
     ) {
         Text(choice.text)

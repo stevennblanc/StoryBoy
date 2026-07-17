@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,16 +67,17 @@ private fun StoryBoySplash(onComplete: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(UiConfig.ThemeColors.BackgroundCol)
+            .background(ThemeManager.colors.BackgroundCol)
+            .safeDrawingPadding()
             .alpha(alpha.value),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = visibleText,
             style = TextStyle(
-                color = UiConfig.ThemeColors.BodyText,
+                color = ThemeManager.colors.BodyText,
                 fontFamily = UiConfig.Fonts.PrimaryFontFamily,
-                fontSize = UiConfig.Fonts.MenuHeading,
+                fontSize = UiConfig.Fonts.MenuHeading * ThemeManager.fontScale,
             ),
         )
     }

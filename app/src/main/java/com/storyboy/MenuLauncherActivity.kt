@@ -22,6 +22,9 @@ class MenuLauncherActivity : ComponentActivity() {
                 LauncherScreen(
                     launcherViewModel = launcherViewModel,
                     updateViewModel = updateViewModel,
+                    onOpenSettings = {
+                        startActivity(Navigation.menuSettingsIntent(this))
+                    },
                     onOpenGamebook = { gamebook ->
                         startActivity(
                             Navigation.storyEngineIntent(

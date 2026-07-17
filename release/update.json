@@ -1,6 +1,6 @@
 {
-  "versionCode": 10,
-  "versionName": "0.10.0",
+  "versionCode": 11,
+  "versionName": "0.11.0",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "Adds flexible dice-based battle nodes with inventory preparation modifiers."
+  "releaseNotes": "Adds app-wide light/dark mode, font size settings, and Android safe-area padding."
 }

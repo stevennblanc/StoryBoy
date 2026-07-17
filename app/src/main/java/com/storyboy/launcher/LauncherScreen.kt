@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -40,6 +41,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import com.storyboy.core.AppConfig
+import com.storyboy.core.ThemeManager
 import com.storyboy.core.UiConfig
 import com.storyboy.models.GamebookMetadata
 import com.storyboy.models.LocalGamebook
@@ -51,6 +53,7 @@ import com.storyboy.updater.UpdateViewModel
 fun LauncherScreen(
     launcherViewModel: LauncherViewModel,
     updateViewModel: UpdateViewModel,
+    onOpenSettings: () -> Unit,
     onOpenGamebook: (LocalGamebook) -> Unit,
 ) {
     val state by launcherViewModel.state.collectAsState()
@@ -59,10 +62,13 @@ fun LauncherScreen(
     val filteredLibrary = state.library.filter { it.metadata.matches(state.searchQuery) }
     val filteredStore = state.store.filter { it.metadata.matches(state.searchQuery) }
 
+    val colors = ThemeManager.colors
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(UiConfig.ThemeColors.BackgroundCol),
+            .background(colors.BackgroundCol)
+            .safeDrawingPadding(),
     ) {
         Column(
             modifier = Modifier
@@ -70,7 +76,7 @@ fun LauncherScreen(
                 .padding(UiConfig.Spacing.ScreenPadding),
             verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
         ) {
-            LauncherTopBar()
+            LauncherTopBar(onOpenSettings = onOpenSettings)
             SearchBar(
                 query = state.searchQuery,
                 onQueryChange = launcherViewModel::updateSearchQuery,
@@ -104,7 +110,7 @@ fun LauncherScreen(
                 }
             }
 
-            HorizontalDivider(color = UiConfig.ThemeColors.SubDivider)
+            HorizontalDivider(color = colors.SubDivider)
             UpdateStrip(
                 status = updateStatus,
                 onCheck = updateViewModel::checkForUpdates,
@@ -137,7 +143,7 @@ fun LauncherScreen(
 }
 
 @Composable
-private fun LauncherTopBar() {
+private fun LauncherTopBar(onOpenSettings: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -147,7 +153,15 @@ private fun LauncherTopBar() {
             Text(text = AppConfig.AppName, style = MaterialTheme.typography.displayMedium)
             Text(text = "Interactive library", style = MaterialTheme.typography.bodyMedium)
         }
-        Text(text = "Offline ready", style = MaterialTheme.typography.labelLarge)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text = "Offline ready", style = MaterialTheme.typography.labelLarge)
+            TextButton(onClick = onOpenSettings) {
+                Text("Settings")
+            }
+        }
     }
 }
 
@@ -171,18 +185,19 @@ private fun LauncherTabs(
     onSelectTab: (LauncherTab) -> Unit,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap)) {
+        val colors = ThemeManager.colors
         LauncherTab.values().forEach { tab ->
             val selected = selectedTab == tab
             TextButton(
                 onClick = { onSelectTab(tab) },
                 modifier = Modifier
                     .background(
-                        color = if (selected) UiConfig.ThemeColors.ElevatedSurfaceCol else UiConfig.ThemeColors.SurfaceCol,
+                        color = if (selected) colors.ElevatedSurfaceCol else colors.SurfaceCol,
                         shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
                     )
                     .border(
                         width = UiConfig.Controls.FocusThickness,
-                        color = if (selected) UiConfig.ThemeColors.FocusCol else UiConfig.ThemeColors.SubDivider,
+                        color = if (selected) colors.FocusCol else colors.SubDivider,
                         shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
                     ),
             ) {
@@ -259,6 +274,7 @@ private fun ShelfControls(
         horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        val colors = ThemeManager.colors
         Button(onClick = onPrimaryAction) {
             Text(primaryAction)
         }
@@ -268,7 +284,7 @@ private fun ShelfControls(
                 onClick = { onDisplayModeChange(mode) },
                 modifier = Modifier.border(
                     width = UiConfig.Controls.FocusThickness,
-                    color = if (selected) UiConfig.ThemeColors.FocusCol else UiConfig.ThemeColors.SubDivider,
+                    color = if (selected) colors.FocusCol else colors.SubDivider,
                     shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
                 ),
             ) {
@@ -326,13 +342,14 @@ private fun CartridgeList(
     books: List<LocalGamebook>,
     onSelect: (LocalGamebook) -> Unit,
 ) {
+    val colors = ThemeManager.colors
     LazyColumn(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer)) {
         items(books, key = { it.metadata.id }) { book ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onSelect(book) }
-                    .background(UiConfig.ThemeColors.SurfaceCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
+                    .background(colors.SurfaceCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
                     .padding(UiConfig.Spacing.ListBuffer),
                 horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
                 verticalAlignment = Alignment.CenterVertically,
@@ -352,11 +369,12 @@ private fun StoreRow(
     book: StoreGamebook,
     onSelect: () -> Unit,
 ) {
+    val colors = ThemeManager.colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onSelect)
-            .background(UiConfig.ThemeColors.SurfaceCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
+            .background(colors.SurfaceCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
             .padding(UiConfig.Spacing.ListBuffer),
         horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
         verticalAlignment = Alignment.CenterVertically,
@@ -439,17 +457,19 @@ private fun DetailPanel(
     onClose: () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val colors = ThemeManager.colors
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(UiConfig.ThemeColors.BackgroundCol),
+            .background(colors.BackgroundCol)
+            .safeDrawingPadding(),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(UiConfig.Spacing.ScreenPadding)
-                .background(UiConfig.ThemeColors.ElevatedSurfaceCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
+                .background(colors.ElevatedSurfaceCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
                 .padding(UiConfig.Spacing.SectionGap),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
@@ -479,6 +499,7 @@ private fun ArtworkFrame(
     displayMode: LibraryDisplayMode,
     modifier: Modifier = Modifier,
 ) {
+    val colors = ThemeManager.colors
     val bitmap = remember(artworkPath) {
         artworkPath?.let(BitmapFactory::decodeFile)
     }
@@ -491,10 +512,10 @@ private fun ArtworkFrame(
 
     Box(
         modifier = frameModifier
-            .background(UiConfig.ThemeColors.BackgroundCol, RoundedCornerShape(UiConfig.Controls.PosterCornerRadius))
+            .background(colors.BackgroundCol, RoundedCornerShape(UiConfig.Controls.PosterCornerRadius))
             .border(
                 width = UiConfig.Controls.FocusThickness,
-                color = UiConfig.ThemeColors.MainDivider,
+                color = colors.MainDivider,
                 shape = RoundedCornerShape(UiConfig.Controls.PosterCornerRadius),
             ),
         contentAlignment = Alignment.Center,
@@ -540,7 +561,7 @@ private fun UpdateStrip(
 
         is UpdateStatus.Available -> Button(
             onClick = onDownload,
-            colors = ButtonDefaults.buttonColors(containerColor = UiConfig.ThemeColors.AccentCol),
+            colors = ButtonDefaults.buttonColors(containerColor = ThemeManager.colors.AccentCol),
         ) {
             Text("Install StoryBoy ${status.manifest.versionName}")
         }
