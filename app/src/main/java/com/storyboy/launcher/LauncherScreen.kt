@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -24,9 +26,11 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -34,34 +38,50 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.storyboy.core.AppConfig
 import com.storyboy.core.ThemeManager
 import com.storyboy.core.UiConfig
 import com.storyboy.models.GamebookMetadata
 import com.storyboy.models.LocalGamebook
 import com.storyboy.models.StoreGamebook
-import com.storyboy.updater.UpdateStatus
-import com.storyboy.updater.UpdateViewModel
+import com.storyboy.widgets.StoryBoyIcon
+import com.storyboy.widgets.StoryBoyIconKind
 
 @Composable
 fun LauncherScreen(
     launcherViewModel: LauncherViewModel,
-    updateViewModel: UpdateViewModel,
     onOpenSettings: () -> Unit,
     onOpenGamebook: (LocalGamebook) -> Unit,
 ) {
     val state by launcherViewModel.state.collectAsState()
-    val updateStatus by updateViewModel.status.collectAsState()
-
-    val filteredLibrary = state.library.filter { it.metadata.matches(state.searchQuery) }
-    val filteredStore = state.store.filter { it.metadata.matches(state.searchQuery) }
-
+    val visibleMetadata = if (state.selectedTab == LauncherTab.Library) {
+        state.library.map { it.metadata }
+    } else {
+        state.store.map { it.metadata }
+    }
+    val genres = visibleMetadata.map { it.genre }.filter { it.isNotBlank() }.distinct().sorted()
+    val filteredLibrary = state.library
+        .filter { it.metadata.matches(state.searchQuery) }
+        .filter { state.selectedGenre == null || it.metadata.genre == state.selectedGenre }
+        .filter {
+            when (state.progressFilter) {
+                ProgressFilter.All -> true
+                ProgressFilter.InProgress -> it.hasPlaythroughInProgress
+                ProgressFilter.NotStarted -> !it.hasPlaythroughInProgress
+            }
+        }
+    val filteredStore = state.store
+        .filter { it.metadata.matches(state.searchQuery) }
+        .filter { state.selectedGenre == null || it.metadata.genre == state.selectedGenre }
     val colors = ThemeManager.colors
 
     Box(
@@ -70,59 +90,60 @@ fun LauncherScreen(
             .background(colors.BackgroundCol)
             .safeDrawingPadding(),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    horizontal = UiConfig.Spacing.ScreenPadding,
-                    vertical = UiConfig.Spacing.ListBuffer,
-                ),
-            verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
-        ) {
-            LauncherTopBar(
-                selectedTab = state.selectedTab,
-                onRefresh = {
-                    if (state.selectedTab == LauncherTab.Library) {
-                        launcherViewModel.refreshLibrary()
-                    } else {
-                        launcherViewModel.refreshStore()
+        Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(
+                        horizontal = UiConfig.Spacing.ScreenPadding,
+                        vertical = UiConfig.Spacing.ListBuffer,
+                    ),
+                verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
+            ) {
+                LauncherHeader(
+                    selectedTab = state.selectedTab,
+                    displayMode = state.libraryDisplayMode,
+                    genres = genres,
+                    selectedGenre = state.selectedGenre,
+                    progressFilter = state.progressFilter,
+                    onRefresh = {
+                        if (state.selectedTab == LauncherTab.Library) {
+                            launcherViewModel.refreshLibrary()
+                        } else {
+                            launcherViewModel.refreshStore()
+                        }
+                    },
+                    onDisplayModeChange = launcherViewModel::selectLibraryDisplayMode,
+                    onGenreChange = launcherViewModel::selectGenreFilter,
+                    onProgressFilterChange = launcherViewModel::selectProgressFilter,
+                )
+                SearchBar(
+                    query = state.searchQuery,
+                    onQueryChange = launcherViewModel::updateSearchQuery,
+                )
+
+                state.message?.let { message ->
+                    Text(text = message, style = MaterialTheme.typography.bodyMedium)
+                }
+
+                Box(modifier = Modifier.weight(1f)) {
+                    when (state.selectedTab) {
+                        LauncherTab.Library -> LibraryShelf(
+                            isLoading = state.isLoadingLibrary,
+                            books = filteredLibrary,
+                            displayMode = state.libraryDisplayMode,
+                            onSelect = launcherViewModel::selectLocalGamebook,
+                        )
+
+                        LauncherTab.Store -> StoreShelf(
+                            isLoading = state.isLoadingStore,
+                            books = filteredStore,
+                            onSelect = launcherViewModel::selectStoreGamebook,
+                        )
                     }
-                },
-            )
-            SearchBar(
-                query = state.searchQuery,
-                onQueryChange = launcherViewModel::updateSearchQuery,
-            )
-
-            state.message?.let { message ->
-                Text(text = message, style = MaterialTheme.typography.bodyMedium)
-            }
-
-            Box(modifier = Modifier.weight(1f)) {
-                when (state.selectedTab) {
-                    LauncherTab.Library -> LibraryShelf(
-                        isLoading = state.isLoadingLibrary,
-                        books = filteredLibrary,
-                        displayMode = state.libraryDisplayMode,
-                        onDisplayModeChange = launcherViewModel::selectLibraryDisplayMode,
-                        onSelect = launcherViewModel::selectLocalGamebook,
-                    )
-
-                    LauncherTab.Store -> StoreShelf(
-                        isLoading = state.isLoadingStore,
-                        books = filteredStore,
-                        onSelect = launcherViewModel::selectStoreGamebook,
-                    )
                 }
             }
 
-            HorizontalDivider(color = colors.SubDivider)
-            UpdateStrip(
-                status = updateStatus,
-                onCheck = updateViewModel::checkForUpdates,
-                onDownload = updateViewModel::downloadAndInstall,
-                onInstall = updateViewModel::installPendingUpdate,
-            )
             BottomNav(
                 selectedTab = state.selectedTab,
                 onSelectTab = launcherViewModel::selectTab,
@@ -154,10 +175,19 @@ fun LauncherScreen(
 }
 
 @Composable
-private fun LauncherTopBar(
+private fun LauncherHeader(
     selectedTab: LauncherTab,
+    displayMode: LibraryDisplayMode,
+    genres: List<String>,
+    selectedGenre: String?,
+    progressFilter: ProgressFilter,
     onRefresh: () -> Unit,
+    onDisplayModeChange: (LibraryDisplayMode) -> Unit,
+    onGenreChange: (String?) -> Unit,
+    onProgressFilterChange: (ProgressFilter) -> Unit,
 ) {
+    var filterMenuOpen by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -165,15 +195,70 @@ private fun LauncherTopBar(
     ) {
         Column {
             Text(text = selectedTab.name, style = MaterialTheme.typography.displayMedium)
-            Text(text = AppConfig.AppName, style = MaterialTheme.typography.bodyMedium)
+            if (selectedGenre != null || progressFilter != ProgressFilter.All) {
+                Text(
+                    text = listOfNotNull(selectedGenre, progressFilter.takeIf { it != ProgressFilter.All }?.label)
+                        .joinToString(" - "),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = "Offline ready", style = MaterialTheme.typography.bodyMedium)
-            TextButton(onClick = onRefresh) {
-                Text("Refresh")
+            Box {
+                IconButton(onClick = { filterMenuOpen = true }) {
+                    StoryBoyIcon(kind = StoryBoyIconKind.Sliders, color = ThemeManager.colors.BodyText)
+                }
+                DropdownMenu(expanded = filterMenuOpen, onDismissRequest = { filterMenuOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text("All") },
+                        onClick = {
+                            onGenreChange(null)
+                            onProgressFilterChange(ProgressFilter.All)
+                            filterMenuOpen = false
+                        },
+                    )
+                    if (selectedTab == LauncherTab.Library) {
+                        ProgressFilter.values().filterNot { it == ProgressFilter.All }.forEach { filter ->
+                            DropdownMenuItem(
+                                text = { Text(filter.label) },
+                                onClick = {
+                                    onProgressFilterChange(filter)
+                                    filterMenuOpen = false
+                                },
+                            )
+                        }
+                    }
+                    genres.forEach { genre ->
+                        DropdownMenuItem(
+                            text = { Text(genre) },
+                            onClick = {
+                                onGenreChange(genre)
+                                filterMenuOpen = false
+                            },
+                        )
+                    }
+                }
+            }
+            if (selectedTab == LauncherTab.Library) {
+                IconButton(
+                    onClick = {
+                        onDisplayModeChange(
+                            if (displayMode == LibraryDisplayMode.Book) {
+                                LibraryDisplayMode.Cartridge
+                            } else {
+                                LibraryDisplayMode.Book
+                            },
+                        )
+                    },
+                ) {
+                    StoryBoyIcon(kind = StoryBoyIconKind.Sort, color = ThemeManager.colors.BodyText)
+                }
+            }
+            IconButton(onClick = onRefresh) {
+                StoryBoyIcon(kind = StoryBoyIconKind.Refresh, color = ThemeManager.colors.BodyText)
             }
         }
     }
@@ -189,7 +274,7 @@ private fun SearchBar(
         onValueChange = onQueryChange,
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
-        label = { Text("Search library and store") },
+        label = { Text("Search") },
     )
 }
 
@@ -200,69 +285,46 @@ private fun BottomNav(
     onOpenSettings: () -> Unit,
 ) {
     val colors = ThemeManager.colors
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.SurfaceCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
-            .padding(UiConfig.Spacing.ItemGap),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        BottomNavItem(
-            label = "Library",
-            selected = selectedTab == LauncherTab.Library,
-            onClick = { onSelectTab(LauncherTab.Library) },
-        )
-        BottomNavItem(
-            label = "Store",
-            selected = selectedTab == LauncherTab.Store,
-            onClick = { onSelectTab(LauncherTab.Store) },
-        )
-        BottomNavItem(
-            label = "Settings",
-            selected = false,
-            onClick = onOpenSettings,
-        )
+    Column {
+        HorizontalDivider(color = colors.SubDivider)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(colors.SurfaceCol)
+                .padding(vertical = UiConfig.Spacing.ItemGap),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            BottomNavItem(
+                kind = StoryBoyIconKind.Books,
+                selected = selectedTab == LauncherTab.Library,
+                onClick = { onSelectTab(LauncherTab.Library) },
+            )
+            BottomNavItem(
+                kind = StoryBoyIconKind.Store,
+                selected = selectedTab == LauncherTab.Store,
+                onClick = { onSelectTab(LauncherTab.Store) },
+            )
+            BottomNavItem(
+                kind = StoryBoyIconKind.Gear,
+                selected = false,
+                onClick = onOpenSettings,
+            )
+        }
     }
 }
 
 @Composable
 private fun BottomNavItem(
-    label: String,
+    kind: StoryBoyIconKind,
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    TextButton(onClick = onClick) {
-        Text(
-            text = label,
+    IconButton(onClick = onClick) {
+        StoryBoyIcon(
+            kind = kind,
             color = if (selected) ThemeManager.colors.AccentCol else ThemeManager.colors.BodyText,
         )
-    }
-}
-
-@Composable
-private fun LibraryTools(
-    displayMode: LibraryDisplayMode,
-    onDisplayModeChange: (LibraryDisplayMode) -> Unit,
-) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val colors = ThemeManager.colors
-        LibraryDisplayMode.values().forEach { mode ->
-            val selected = mode == displayMode
-            TextButton(
-                onClick = { onDisplayModeChange(mode) },
-                modifier = Modifier.border(
-                    width = UiConfig.Controls.FocusThickness,
-                    color = if (selected) colors.FocusCol else colors.SubDivider,
-                    shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
-                ),
-            ) {
-                Text(mode.name)
-            }
-        }
     }
 }
 
@@ -271,24 +333,13 @@ private fun LibraryShelf(
     isLoading: Boolean,
     books: List<LocalGamebook>,
     displayMode: LibraryDisplayMode,
-    onDisplayModeChange: (LibraryDisplayMode) -> Unit,
     onSelect: (LocalGamebook) -> Unit,
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
-    ) {
-        LibraryTools(
-            displayMode = displayMode,
-            onDisplayModeChange = onDisplayModeChange,
-        )
-
-        when {
-            isLoading -> ProgressText("Loading library")
-            books.isEmpty() -> EmptyState("No gamebooks downloaded")
-            displayMode == LibraryDisplayMode.Book -> BookGrid(books = books, onSelect = onSelect)
-            else -> CartridgeList(books = books, onSelect = onSelect)
-        }
+    when {
+        isLoading -> ProgressText("Loading library")
+        books.isEmpty() -> EmptyState("No gamebooks downloaded")
+        displayMode == LibraryDisplayMode.Book -> BookGrid(books = books, onSelect = onSelect)
+        else -> CartridgeList(books = books, onSelect = onSelect)
     }
 }
 
@@ -298,17 +349,12 @@ private fun StoreShelf(
     books: List<StoreGamebook>,
     onSelect: (StoreGamebook) -> Unit,
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
-    ) {
-        when {
-            isLoading -> ProgressText("Loading store")
-            books.isEmpty() -> EmptyState("No adventures available")
-            else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer)) {
-                items(books, key = { it.metadata.id }) { book ->
-                    StoreRow(book = book, onSelect = { onSelect(book) })
-                }
+    when {
+        isLoading -> ProgressText("Loading store")
+        books.isEmpty() -> EmptyState("No adventures available")
+        else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer)) {
+            items(books, key = { it.metadata.id }) { book ->
+                StoreRow(book = book, onSelect = { onSelect(book) })
             }
         }
     }
@@ -320,7 +366,7 @@ private fun BookGrid(
     onSelect: (LocalGamebook) -> Unit,
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(UiConfig.ImageSizes.GamePosterGridWidth),
+        columns = GridCells.Fixed(3),
         horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.GridBuffer),
         verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.GridBuffer),
     ) {
@@ -335,25 +381,27 @@ private fun BookTile(
     book: LocalGamebook,
     onSelect: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier.clickable(onClick = onSelect),
-        verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
-    ) {
+    Box(modifier = Modifier.clickable(onClick = onSelect)) {
         ArtworkFrame(
             artworkPath = book.posterPath,
             displayMode = LibraryDisplayMode.Book,
             modifier = Modifier.fillMaxWidth(),
         )
-        Text(
-            text = book.metadata.title,
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = if (book.hasPlaythroughInProgress) "In progress" else "New",
-            style = MaterialTheme.typography.labelLarge,
-        )
+        if (book.hasPlaythroughInProgress) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = (-UiConfig.Spacing.ItemGap), y = UiConfig.Spacing.ItemGap)
+                    .background(ThemeManager.colors.AccentCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
+                    .padding(UiConfig.Spacing.ItemGap),
+            ) {
+                StoryBoyIcon(
+                    kind = StoryBoyIconKind.Check,
+                    color = ThemeManager.colors.BackgroundCol,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
     }
 }
 
@@ -418,7 +466,7 @@ private fun BookSummary(
         verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
     ) {
         Text(text = metadata.title, style = MaterialTheme.typography.headlineMedium)
-        Text(text = "${metadata.author} • ${metadata.genre}", style = MaterialTheme.typography.bodyMedium)
+        Text(text = "${metadata.author} - ${metadata.genre}", style = MaterialTheme.typography.bodyMedium)
         Text(text = metadata.description, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Text(text = status, style = MaterialTheme.typography.labelLarge)
     }
@@ -512,7 +560,7 @@ private fun DetailPanel(
 private fun DetailCopy(metadata: GamebookMetadata) {
     Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap)) {
         Text(text = metadata.title, style = MaterialTheme.typography.displayMedium)
-        Text(text = "${metadata.author} • ${metadata.genre} • ${metadata.version}", style = MaterialTheme.typography.labelLarge)
+        Text(text = "${metadata.author} - ${metadata.genre} - ${metadata.version}", style = MaterialTheme.typography.labelLarge)
         Text(text = metadata.description, style = MaterialTheme.typography.bodyLarge)
     }
 }
@@ -530,7 +578,7 @@ private fun ArtworkFrame(
     val frameModifier = when (displayMode) {
         LibraryDisplayMode.Book -> modifier.aspectRatio(0.69f)
         LibraryDisplayMode.Cartridge -> modifier
-            .width(UiConfig.ImageSizes.GameBannerListWidth)
+            .fillMaxWidth()
             .height(UiConfig.ImageSizes.GameBannerListHeight)
     }
 
@@ -561,38 +609,6 @@ private fun ArtworkFrame(
 private fun EmptyState(text: String) {
     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Text(text = text, style = MaterialTheme.typography.bodyLarge)
-    }
-}
-
-@Composable
-private fun UpdateStrip(
-    status: UpdateStatus,
-    onCheck: () -> Unit,
-    onDownload: () -> Unit,
-    onInstall: () -> Unit,
-) {
-    when (status) {
-        UpdateStatus.Idle -> TextButton(onClick = onCheck) {
-            Text("Check for app updates")
-        }
-
-        UpdateStatus.Checking -> Text(text = "Checking for app updates", style = MaterialTheme.typography.bodyMedium)
-        UpdateStatus.Downloading -> Text(text = "Downloading app update", style = MaterialTheme.typography.bodyMedium)
-        UpdateStatus.UpToDate -> Text(text = "StoryBoy is up to date", style = MaterialTheme.typography.bodyMedium)
-        UpdateStatus.ReadyToInstall -> Button(onClick = onInstall) {
-            Text("Install app update")
-        }
-
-        is UpdateStatus.Available -> Button(
-            onClick = onDownload,
-            colors = ButtonDefaults.buttonColors(containerColor = ThemeManager.colors.AccentCol),
-        ) {
-            Text("Install StoryBoy ${status.manifest.versionName}")
-        }
-
-        is UpdateStatus.Failed -> TextButton(onClick = onCheck) {
-            Text("Update check failed")
-        }
     }
 }
 

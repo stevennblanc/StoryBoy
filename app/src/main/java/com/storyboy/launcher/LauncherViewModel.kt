@@ -44,6 +44,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         mutableState.update { it.copy(libraryDisplayMode = displayMode) }
     }
 
+    fun selectProgressFilter(filter: ProgressFilter) {
+        mutableState.update { it.copy(progressFilter = filter) }
+    }
+
+    fun selectGenreFilter(genre: String?) {
+        mutableState.update { it.copy(selectedGenre = genre) }
+    }
+
     fun updateSearchQuery(query: String) {
         mutableState.update { it.copy(searchQuery = query) }
     }

@@ -3,6 +3,7 @@ package com.storyboy
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -12,18 +13,24 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -31,33 +38,59 @@ import com.storyboy.core.AppearanceMode
 import com.storyboy.core.AppearanceSettingsRepository
 import com.storyboy.core.ThemeManager
 import com.storyboy.core.UiConfig
+import com.storyboy.core.UserProfile
+import com.storyboy.core.UserProfileRepository
 import com.storyboy.core.rememberAppearanceSettings
+import com.storyboy.updater.UpdateStatus
+import com.storyboy.updater.UpdateViewModel
 import kotlin.math.roundToInt
 
 class MenuSettingsActivity : ComponentActivity() {
+    private val updateViewModel: UpdateViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setContent {
             ThemeManager.StoryBoyTheme {
-                SettingsScreen(onBack = ::finish)
+                val updateStatus by updateViewModel.status.collectAsState()
+                SettingsScreen(
+                    updateStatus = updateStatus,
+                    onBack = ::finish,
+                    onCheckUpdate = updateViewModel::checkForUpdates,
+                    onDownloadUpdate = updateViewModel::downloadAndInstall,
+                    onInstallUpdate = updateViewModel::installPendingUpdate,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun SettingsScreen(onBack: () -> Unit) {
+private fun SettingsScreen(
+    updateStatus: UpdateStatus,
+    onBack: () -> Unit,
+    onCheckUpdate: () -> Unit,
+    onDownloadUpdate: () -> Unit,
+    onInstallUpdate: () -> Unit,
+) {
     val context = LocalContext.current.applicationContext
-    val repository = remember(context) { AppearanceSettingsRepository(context) }
+    val appearanceRepository = remember(context) { AppearanceSettingsRepository(context) }
+    val profileRepository = remember(context) { UserProfileRepository(context) }
     val settings by rememberAppearanceSettings()
     val colors = ThemeManager.colors
+    val initialProfile = remember { profileRepository.load() }
+    var displayName by remember { mutableStateOf(initialProfile.displayName) }
+    var email by remember { mutableStateOf(initialProfile.email) }
+    var accountId by remember { mutableStateOf(initialProfile.accountId) }
+    var profileMessage by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(colors.BackgroundCol)
             .safeDrawingPadding()
+            .verticalScroll(rememberScrollState())
             .padding(UiConfig.Spacing.ScreenPadding),
         verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.SectionGap),
     ) {
@@ -68,14 +101,56 @@ private fun SettingsScreen(onBack: () -> Unit) {
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap)) {
                 Text(text = "Settings", style = MaterialTheme.typography.displayMedium)
-                Text(text = "Appearance", style = MaterialTheme.typography.bodyMedium)
+                Text(text = "Profile, appearance, updates", style = MaterialTheme.typography.bodyMedium)
             }
             TextButton(onClick = onBack) {
                 Text("Library")
             }
         }
 
-        SettingPanel {
+        SettingPanel(title = "Profile") {
+            OutlinedTextField(
+                value = displayName,
+                onValueChange = { displayName = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Display name") },
+            )
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Email") },
+            )
+            OutlinedTextField(
+                value = accountId,
+                onValueChange = { accountId = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Account id") },
+            )
+            Button(
+                onClick = {
+                    profileRepository.save(
+                        UserProfile(
+                            displayName = displayName,
+                            email = email,
+                            accountId = accountId,
+                        ),
+                    )
+                    profileMessage = "Profile saved on this device."
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Save profile")
+            }
+            if (profileMessage.isNotBlank()) {
+                Text(text = profileMessage, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+
+        SettingPanel(title = "Appearance") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -85,7 +160,7 @@ private fun SettingsScreen(onBack: () -> Unit) {
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
                 ) {
-                    Text(text = "Dark mode", style = MaterialTheme.typography.headlineMedium)
+                    Text(text = "Dark mode", style = MaterialTheme.typography.bodyLarge)
                     Text(
                         text = if (settings.mode == AppearanceMode.Dark) "Dark interface and reader" else "Light interface and reader",
                         style = MaterialTheme.typography.bodyMedium,
@@ -94,73 +169,109 @@ private fun SettingsScreen(onBack: () -> Unit) {
                 Switch(
                     checked = settings.mode == AppearanceMode.Dark,
                     onCheckedChange = { enabled ->
-                        repository.setMode(if (enabled) AppearanceMode.Dark else AppearanceMode.Light)
+                        appearanceRepository.setMode(if (enabled) AppearanceMode.Dark else AppearanceMode.Light)
                     },
                 )
             }
-        }
 
-        SettingPanel {
-            Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap)) {
-                        Text(text = "Font size", style = MaterialTheme.typography.headlineMedium)
-                        Text(
-                            text = "${(settings.fontScale * 100).roundToInt()}%",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-                    Button(
-                        onClick = { repository.setFontScale(AppearanceSettingsRepository.DefaultFontScale) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colors.ReaderChoiceCol,
-                            contentColor = colors.ReaderText,
-                        ),
-                    ) {
-                        Text("Reset")
-                    }
+            HorizontalDivider(color = colors.SubDivider)
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap)) {
+                    Text(text = "Font size", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = "${(settings.fontScale * 100).roundToInt()}%",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
-
-                Slider(
-                    value = settings.fontScale,
-                    onValueChange = repository::setFontScale,
-                    valueRange = AppearanceSettingsRepository.MinFontScale..AppearanceSettingsRepository.MaxFontScale,
-                    steps = 9,
-                )
-            }
-        }
-
-        HorizontalDivider(color = colors.SubDivider)
-
-        SettingPanel {
-            Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer)) {
-                Text(text = "Preview", style = MaterialTheme.typography.headlineMedium)
-                Text(
-                    text = "Nathan turned the page and listened to the rain against the office window.",
-                    style = MaterialTheme.typography.bodyLarge,
-                )
                 Button(
-                    onClick = {},
-                    enabled = false,
-                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { appearanceRepository.setFontScale(AppearanceSettingsRepository.DefaultFontScale) },
                     colors = ButtonDefaults.buttonColors(
-                        disabledContainerColor = colors.ReaderChoiceCol,
-                        disabledContentColor = colors.ReaderText,
+                        containerColor = colors.ReaderChoiceCol,
+                        contentColor = colors.ReaderText,
                     ),
                 ) {
-                    Text("Choice button preview")
+                    Text("Reset")
                 }
+            }
+            Slider(
+                value = settings.fontScale,
+                onValueChange = appearanceRepository::setFontScale,
+                valueRange = AppearanceSettingsRepository.MinFontScale..AppearanceSettingsRepository.MaxFontScale,
+                steps = 9,
+            )
+        }
+
+        SettingPanel(title = "App updates") {
+            UpdateControls(
+                status = updateStatus,
+                onCheck = onCheckUpdate,
+                onDownload = onDownloadUpdate,
+                onInstall = onInstallUpdate,
+            )
+        }
+
+        SettingPanel(title = "Preview") {
+            Text(
+                text = "Nathan turned the page and listened to the rain against the office window.",
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Button(
+                onClick = {},
+                enabled = false,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    disabledContainerColor = colors.ReaderChoiceCol,
+                    disabledContentColor = colors.ReaderText,
+                ),
+            ) {
+                Text("Choice button preview")
             }
         }
     }
 }
 
 @Composable
-private fun SettingPanel(content: @Composable () -> Unit) {
+private fun UpdateControls(
+    status: UpdateStatus,
+    onCheck: () -> Unit,
+    onDownload: () -> Unit,
+    onInstall: () -> Unit,
+) {
+    when (status) {
+        UpdateStatus.Idle -> Button(onClick = onCheck, modifier = Modifier.fillMaxWidth()) {
+            Text("Check for app updates")
+        }
+
+        UpdateStatus.Checking -> Text(text = "Checking for app updates", style = MaterialTheme.typography.bodyMedium)
+        UpdateStatus.Downloading -> Text(text = "Downloading app update", style = MaterialTheme.typography.bodyMedium)
+        UpdateStatus.UpToDate -> Text(text = "StoryBoy is up to date", style = MaterialTheme.typography.bodyMedium)
+        UpdateStatus.ReadyToInstall -> Button(onClick = onInstall, modifier = Modifier.fillMaxWidth()) {
+            Text("Install app update")
+        }
+
+        is UpdateStatus.Available -> Button(onClick = onDownload, modifier = Modifier.fillMaxWidth()) {
+            Text("Install StoryBoy ${status.manifest.versionName}")
+        }
+
+        is UpdateStatus.Failed -> Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap)) {
+            Text(text = status.message, style = MaterialTheme.typography.bodyMedium)
+            TextButton(onClick = onCheck) {
+                Text("Try again")
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingPanel(
+    title: String,
+    content: @Composable () -> Unit,
+) {
     val colors = ThemeManager.colors
     Column(
         modifier = Modifier
@@ -174,6 +285,7 @@ private fun SettingPanel(content: @Composable () -> Unit) {
             .padding(UiConfig.Spacing.ListBuffer),
         verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
     ) {
+        Text(text = title, style = MaterialTheme.typography.headlineMedium)
         content()
     }
 }

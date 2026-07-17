@@ -8,11 +8,9 @@ import com.storyboy.core.Navigation
 import com.storyboy.core.ThemeManager
 import com.storyboy.launcher.LauncherScreen
 import com.storyboy.launcher.LauncherViewModel
-import com.storyboy.updater.UpdateViewModel
 
 class MenuLauncherActivity : ComponentActivity() {
     private val launcherViewModel: LauncherViewModel by viewModels()
-    private val updateViewModel: UpdateViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -21,7 +19,6 @@ class MenuLauncherActivity : ComponentActivity() {
             ThemeManager.StoryBoyTheme {
                 LauncherScreen(
                     launcherViewModel = launcherViewModel,
-                    updateViewModel = updateViewModel,
                     onOpenSettings = {
                         startActivity(Navigation.menuSettingsIntent(this))
                     },

@@ -1,6 +1,6 @@
 {
-  "versionCode": 12,
-  "versionName": "0.12.0",
+  "versionCode": 13,
+  "versionName": "0.13.0",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "Refines reader chrome, launcher navigation, store cards, and control typography."
+  "releaseNotes": "Adds icon bottom navigation, library filters, view toggles, profile settings, and moves app updates into Settings."
 }
