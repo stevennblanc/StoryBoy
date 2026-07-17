@@ -40,6 +40,8 @@ import com.storyboy.core.Navigation
 import com.storyboy.core.ThemeManager
 import com.storyboy.core.UiConfig
 import com.storyboy.engine.EvidenceItem
+import com.storyboy.engine.InventoryItem
+import com.storyboy.engine.MapLocation
 import com.storyboy.engine.StoryChoice
 import com.storyboy.engine.StoryEngineState
 import com.storyboy.engine.StoryEngineViewModel
@@ -112,6 +114,7 @@ private fun ReaderContent(
     val gamebook = state.gamebook ?: return
     val node = state.currentNode ?: return
     var showEvidence by remember { mutableStateOf(false) }
+    var showInventory by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -120,9 +123,11 @@ private fun ReaderContent(
         ReaderTopBar(
             title = gamebook.metadata.title,
             evidenceCount = state.collectedEvidence.size,
+            inventoryCount = state.collectedInventory.size,
             onBack = onBack,
             onRestart = onRestart,
             onEvidence = { showEvidence = !showEvidence },
+            onInventory = { showInventory = !showInventory },
         )
 
         Column(
@@ -134,6 +139,10 @@ private fun ReaderContent(
         ) {
             if (showEvidence) {
                 EvidenceBoard(evidence = state.collectedEvidence)
+            }
+
+            if (showInventory) {
+                InventoryPanel(inventory = state.collectedInventory)
             }
 
             state.currentNodeImages.forEach { image ->
@@ -154,6 +163,11 @@ private fun ReaderContent(
                     nodeId = node.id,
                     question = node.text,
                     onSubmit = onPuzzleAnswer,
+                )
+            } else if (node.type == "map") {
+                MapPicker(
+                    locations = node.mapLocations,
+                    onChoice = onChoice,
                 )
             } else if (node.choices.isEmpty()) {
                 Text(
@@ -239,9 +253,11 @@ private fun PuzzleInput(
 private fun ReaderTopBar(
     title: String,
     evidenceCount: Int,
+    inventoryCount: Int,
     onBack: () -> Unit,
     onRestart: () -> Unit,
     onEvidence: () -> Unit,
+    onInventory: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -256,6 +272,9 @@ private fun ReaderTopBar(
             style = MaterialTheme.typography.bodyMedium.copy(color = UiConfig.ThemeColors.ReaderMutedText),
         )
         Row {
+            TextButton(onClick = onInventory, enabled = inventoryCount > 0) {
+                Text("Items $inventoryCount")
+            }
             TextButton(onClick = onEvidence, enabled = evidenceCount > 0) {
                 Text("Evidence $evidenceCount")
             }
@@ -267,7 +286,28 @@ private fun ReaderTopBar(
 }
 
 @Composable
+private fun InventoryPanel(inventory: List<InventoryItem>) {
+    ReaderCollectionPanel(title = "Inventory") {
+        inventory.forEach { item ->
+            CollectionItem(title = item.title, description = item.description)
+        }
+    }
+}
+
+@Composable
 private fun EvidenceBoard(evidence: List<EvidenceItem>) {
+    ReaderCollectionPanel(title = "Evidence Board") {
+        evidence.forEach { item ->
+            CollectionItem(title = item.title, description = item.description)
+        }
+    }
+}
+
+@Composable
+private fun ReaderCollectionPanel(
+    title: String,
+    content: @Composable () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -281,20 +321,71 @@ private fun EvidenceBoard(evidence: List<EvidenceItem>) {
         verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
     ) {
         Text(
-            text = "Evidence Board",
+            text = title,
             style = MaterialTheme.typography.headlineMedium.copy(color = UiConfig.ThemeColors.ReaderText),
         )
-        evidence.forEach { item ->
-            Column {
-                Text(
-                    text = item.title,
-                    style = MaterialTheme.typography.labelLarge.copy(color = UiConfig.ThemeColors.ReaderText),
-                )
-                if (item.description.isNotBlank()) {
-                    Text(
-                        text = item.description,
-                        style = MaterialTheme.typography.bodyMedium.copy(color = UiConfig.ThemeColors.ReaderMutedText),
+        content()
+    }
+}
+
+@Composable
+private fun CollectionItem(
+    title: String,
+    description: String,
+) {
+    Column {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge.copy(color = UiConfig.ThemeColors.ReaderText),
+        )
+        if (description.isNotBlank()) {
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium.copy(color = UiConfig.ThemeColors.ReaderMutedText),
+            )
+        }
+    }
+}
+
+@Composable
+private fun MapPicker(
+    locations: List<MapLocation>,
+    onChoice: (StoryChoice) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer)) {
+        locations.forEach { location ->
+            Button(
+                onClick = {
+                    onChoice(
+                        StoryChoice(
+                            text = location.title,
+                            targetNodeId = location.targetNodeId,
+                        ),
                     )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = UiConfig.Controls.FocusThickness,
+                        color = UiConfig.ThemeColors.ReaderDivider,
+                        shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
+                    ),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = UiConfig.ThemeColors.ReaderChoiceCol,
+                    contentColor = UiConfig.ThemeColors.ReaderText,
+                ),
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
+                ) {
+                    Text(location.title)
+                    if (location.description.isNotBlank()) {
+                        Text(
+                            text = location.description,
+                            style = MaterialTheme.typography.bodyMedium.copy(color = UiConfig.ThemeColors.ReaderMutedText),
+                        )
+                    }
                 }
             }
         }

@@ -144,6 +144,61 @@ Nodes may also reference multiple images:
 
 Referenced image paths must exist inside the `.gbk` package.
 
+## Inventory
+
+Inventory is optional. Define inventory globally:
+
+```json
+{
+  "inventory": [
+    {
+      "id": "locker_key",
+      "title": "Locker Key",
+      "description": "A brass key stamped 317."
+    }
+  ]
+}
+```
+
+Grant inventory from any node with `items`, `inventory`, `gain_inventory`, or `gains_inventory`.
+
+```json
+{
+  "id": "take_key",
+  "type": "inventory",
+  "text": "The key was hidden under the ashtray.",
+  "items": ["locker_key"],
+  "return_to": "apartment_search"
+}
+```
+
+## Map Nodes
+
+Use map nodes for travel or investigation hubs.
+
+```json
+{
+  "id": "city_map",
+  "type": "map",
+  "text": "Choose the next lead.",
+  "image": "images/city_map.png",
+  "locations": [
+    {
+      "title": "Miles' Apartment",
+      "description": "A room above a pawn shop.",
+      "target": "apartment_investigation"
+    },
+    {
+      "title": "The Crescent Room",
+      "description": "The jazz club where Miles was last seen.",
+      "target": "jazz_club"
+    }
+  ]
+}
+```
+
+Every map location target must exist.
+
 Nodes may also grant inline evidence objects:
 
 ```json

@@ -65,8 +65,11 @@ class StoryEngineViewModel(application: Application) : AndroidViewModel(applicat
     private fun enterNode(gamebook: StoryGamebook, node: StoryNode) {
         val collectedIds = repository.collectedEvidenceIds(gamebook.metadata.id)
             .plus(node.evidenceGained.map { it.id })
+        val inventoryIds = repository.collectedInventoryIds(gamebook.metadata.id)
+            .plus(node.inventoryGained.map { it.id })
         repository.saveCurrentNode(gamebook.metadata.id, node.id)
         repository.saveEvidence(gamebook.metadata.id, collectedIds)
+        repository.saveInventory(gamebook.metadata.id, inventoryIds)
         mutableState.value = StoryEngineState(
             isLoading = false,
             gamebook = gamebook,
@@ -81,6 +84,7 @@ class StoryEngineViewModel(application: Application) : AndroidViewModel(applicat
                 )
             },
             collectedEvidence = collectedIds.mapNotNull { gamebook.evidenceCatalog[it] },
+            collectedInventory = inventoryIds.mapNotNull { gamebook.inventoryCatalog[it] },
         )
     }
 }

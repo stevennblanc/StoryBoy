@@ -6,5 +6,6 @@ data class StoryEngineState(
     val currentNode: StoryNode? = null,
     val currentNodeImages: List<StoryImage> = emptyList(),
     val collectedEvidence: List<EvidenceItem> = emptyList(),
+    val collectedInventory: List<InventoryItem> = emptyList(),
     val error: String? = null,
 )

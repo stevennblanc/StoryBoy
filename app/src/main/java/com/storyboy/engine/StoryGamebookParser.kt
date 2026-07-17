@@ -18,11 +18,13 @@ object StoryGamebookParser {
 
         nodes.validateTargets()
         val evidenceCatalog = parseEvidenceCatalog(source, nodes)
+        val inventoryCatalog = parseInventoryCatalog(source, nodes)
 
         return StoryGamebook(
             metadata = metadata,
             nodes = nodes,
             evidenceCatalog = evidenceCatalog,
+            inventoryCatalog = inventoryCatalog,
         )
     }
 
@@ -60,6 +62,18 @@ object StoryGamebookParser {
             return parsePuzzleNode(nodeJson, nodeId, type)
         }
 
+        if (type == "inventory") {
+            return parseCollectionNode(nodeJson, nodeId, type, defaultContinueText = "Continue")
+        }
+
+        if (type == "evidence") {
+            return parseCollectionNode(nodeJson, nodeId, type, defaultContinueText = "Continue")
+        }
+
+        if (type == "map") {
+            return parseMapNode(nodeJson, nodeId, type)
+        }
+
         val choicesJson = nodeJson.optJSONArray("choices")
         val choices = parseChoices(choicesJson)
 
@@ -70,6 +84,7 @@ object StoryGamebookParser {
             images = parseImages(nodeJson),
             choices = choices,
             evidenceGained = parseEvidenceGained(nodeJson),
+            inventoryGained = parseInventoryGained(nodeJson),
         )
     }
 
@@ -104,6 +119,7 @@ object StoryGamebookParser {
             images = parseImages(nodeJson),
             choices = choices,
             evidenceGained = parseEvidenceGained(nodeJson),
+            inventoryGained = parseInventoryGained(nodeJson),
         )
     }
 
@@ -128,11 +144,55 @@ object StoryGamebookParser {
             images = parseImages(nodeJson),
             choices = emptyList(),
             evidenceGained = parseEvidenceGained(nodeJson),
+            inventoryGained = parseInventoryGained(nodeJson),
             acceptedAnswers = answers,
             correctTargetNodeId = nodeJson.optString("correct_target").ifBlank { null },
             incorrectTargetNodeId = nodeJson.optString("incorrect_target").ifBlank {
                 nodeJson.optString("default_target").ifBlank { null }
             },
+        )
+    }
+
+    private fun parseCollectionNode(
+        nodeJson: JSONObject,
+        nodeId: String,
+        type: String,
+        defaultContinueText: String,
+    ): StoryNode {
+        val returnTo = nodeJson.optString("return_to")
+        val choices = parseChoices(nodeJson.optJSONArray("choices")).ifEmpty {
+            if (returnTo.isBlank()) {
+                emptyList()
+            } else {
+                listOf(StoryChoice(text = defaultContinueText, targetNodeId = returnTo))
+            }
+        }
+
+        return StoryNode(
+            id = nodeId,
+            type = type,
+            text = nodeJson.optString("text"),
+            images = parseImages(nodeJson),
+            choices = choices,
+            evidenceGained = parseEvidenceGained(nodeJson),
+            inventoryGained = parseInventoryGained(nodeJson),
+        )
+    }
+
+    private fun parseMapNode(
+        nodeJson: JSONObject,
+        nodeId: String,
+        type: String,
+    ): StoryNode {
+        return StoryNode(
+            id = nodeId,
+            type = type,
+            text = nodeJson.optString("text", nodeJson.optString("title", "Choose a location.")),
+            images = parseImages(nodeJson),
+            choices = parseChoices(nodeJson.optJSONArray("choices")),
+            evidenceGained = parseEvidenceGained(nodeJson),
+            inventoryGained = parseInventoryGained(nodeJson),
+            mapLocations = parseMapLocations(nodeJson.optJSONArray("locations")),
         )
     }
 
@@ -196,6 +256,24 @@ object StoryGamebookParser {
         return catalog
     }
 
+    private fun parseInventoryCatalog(
+        source: JSONObject,
+        nodes: Map<String, StoryNode>,
+    ): Map<String, InventoryItem> {
+        val catalog = linkedMapOf<String, InventoryItem>()
+        val inventoryJson = source.optJSONArray("inventory")
+        if (inventoryJson != null) {
+            for (index in 0 until inventoryJson.length()) {
+                val item = inventoryJson.getInventoryItem(index)
+                catalog[item.id] = item
+            }
+        }
+        nodes.values
+            .flatMap { it.inventoryGained }
+            .forEach { item -> catalog[item.id] = item }
+        return catalog
+    }
+
     private fun parseEvidenceGained(nodeJson: JSONObject): List<EvidenceItem> {
         val evidenceJson = nodeJson.optJSONArray("evidence")
             ?: nodeJson.optJSONArray("gain_evidence")
@@ -205,6 +283,37 @@ object StoryGamebookParser {
         return buildList {
             for (index in 0 until evidenceJson.length()) {
                 add(evidenceJson.getEvidenceItem(index))
+            }
+        }
+    }
+
+    private fun parseInventoryGained(nodeJson: JSONObject): List<InventoryItem> {
+        val inventoryJson = nodeJson.optJSONArray("inventory")
+            ?: nodeJson.optJSONArray("items")
+            ?: nodeJson.optJSONArray("gain_inventory")
+            ?: nodeJson.optJSONArray("gains_inventory")
+            ?: return emptyList()
+
+        return buildList {
+            for (index in 0 until inventoryJson.length()) {
+                add(inventoryJson.getInventoryItem(index))
+            }
+        }
+    }
+
+    private fun parseMapLocations(locationsJson: JSONArray?): List<MapLocation> {
+        return buildList {
+            if (locationsJson != null) {
+                for (index in 0 until locationsJson.length()) {
+                    val locationJson = locationsJson.getJSONObject(index)
+                    add(
+                        MapLocation(
+                            title = locationJson.getString("title"),
+                            description = locationJson.optString("description"),
+                            targetNodeId = locationJson.getString("target"),
+                        ),
+                    )
+                }
             }
         }
     }
@@ -221,6 +330,11 @@ object StoryGamebookParser {
             }
             node.incorrectTargetNodeId?.let { target ->
                 require(containsKey(target)) { "Puzzle ${node.id} points to missing incorrect target $target." }
+            }
+            node.mapLocations.forEach { location ->
+                require(containsKey(location.targetNodeId)) {
+                    "Map node ${node.id} points to missing location target ${location.targetNodeId}."
+                }
             }
         }
     }
@@ -245,11 +359,34 @@ private fun JSONArray.getEvidenceItem(index: Int): EvidenceItem {
     }
 }
 
+private fun JSONArray.getInventoryItem(index: Int): InventoryItem {
+    val rawItem = get(index)
+    return if (rawItem is JSONObject) {
+        val id = rawItem.getString("id")
+        InventoryItem(
+            id = id,
+            title = rawItem.optString("title", id.toDisplayTitle()),
+            description = rawItem.optString("description"),
+        )
+    } else {
+        val id = rawItem.toString()
+        InventoryItem(
+            id = id,
+            title = id.toDisplayTitle(),
+            description = "",
+        )
+    }
+}
+
 fun String.normalizeAnswer(): String {
     return trim().lowercase().replace(Regex("\\s+"), " ")
 }
 
 private fun String.toEvidenceTitle(): String {
+    return toDisplayTitle()
+}
+
+private fun String.toDisplayTitle(): String {
     return replace(Regex("[_\\-]+"), " ")
         .split(" ")
         .filter { it.isNotBlank() }

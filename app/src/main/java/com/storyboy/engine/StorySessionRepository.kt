@@ -41,11 +41,22 @@ class StorySessionRepository(context: Context) {
             .apply()
     }
 
+    fun collectedInventoryIds(gamebookId: String): Set<String> {
+        return progressPrefs.getStringSet(inventoryKey(gamebookId), emptySet()).orEmpty()
+    }
+
+    fun saveInventory(gamebookId: String, inventoryIds: Set<String>) {
+        progressPrefs.edit()
+            .putStringSet(inventoryKey(gamebookId), inventoryIds)
+            .apply()
+    }
+
     fun reset(gamebookId: String) {
         progressPrefs.edit()
             .remove(currentNodeKey(gamebookId))
             .remove(startedKey(gamebookId))
             .remove(evidenceKey(gamebookId))
+            .remove(inventoryKey(gamebookId))
             .apply()
     }
 
@@ -54,4 +65,6 @@ class StorySessionRepository(context: Context) {
     private fun startedKey(gamebookId: String): String = "started_$gamebookId"
 
     private fun evidenceKey(gamebookId: String): String = "evidence_$gamebookId"
+
+    private fun inventoryKey(gamebookId: String): String = "inventory_$gamebookId"
 }

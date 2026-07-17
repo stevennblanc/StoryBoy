@@ -1,6 +1,6 @@
 {
-  "versionCode": 8,
-  "versionName": "0.8.0",
+  "versionCode": 9,
+  "versionName": "0.9.0",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "Adds support for in-story node images packaged inside .gbk files."
+  "releaseNotes": "Adds inventory, evidence, and map runtime node types."
 }

@@ -139,6 +139,82 @@ Example accepted answers:
 }
 ```
 
+### 4. Inventory Node
+
+Use inventory nodes when the main purpose of the scene is gaining one or more items.
+
+```json
+{
+  "id": "take_locker_key",
+  "type": "inventory",
+  "text": "The brass key was stamped with the number 317.",
+  "items": [
+    {
+      "id": "locker_key",
+      "title": "Locker Key",
+      "description": "A brass key stamped 317."
+    }
+  ],
+  "return_to": "apartment_search"
+}
+```
+
+`return_to` is optional. If provided, StoryBoy displays a Continue choice automatically.
+
+Inventory can also be granted from any `text`, `lore`, `puzzle`, `evidence`, or `map` node with `items`, `inventory`, `gain_inventory`, or `gains_inventory`.
+
+### 5. Evidence Node
+
+Use evidence nodes when the main purpose of the scene is gaining or reviewing evidence.
+
+```json
+{
+  "id": "collect_roy_ledger",
+  "type": "evidence",
+  "text": "The ledger listed three payments from Callahan Maritime.",
+  "evidence": [
+    {
+      "id": "roy_ledger",
+      "title": "Roy's Ledger",
+      "description": "A ledger showing suspicious payments tied to the docks."
+    }
+  ],
+  "return_to": "office_hub"
+}
+```
+
+`return_to` is optional. If provided, StoryBoy displays a Continue choice automatically.
+
+Evidence can also be granted from any node with `evidence`, `gain_evidence`, or `gains_evidence`.
+
+### 6. Map Node
+
+Use map nodes for travel, location selection, and open investigation hubs.
+
+```json
+{
+  "id": "city_map",
+  "type": "map",
+  "text": "Choose the next lead.",
+  "image": "images/city_map.png",
+  "image_caption": "Marlowe Square, Brooker Street, and the south docks.",
+  "locations": [
+    {
+      "title": "Miles' Apartment",
+      "description": "A room above a pawn shop on Brooker Street.",
+      "target": "apartment_investigation"
+    },
+    {
+      "title": "The Crescent Room",
+      "description": "The jazz club where Miles was last seen.",
+      "target": "jazz_club"
+    }
+  ]
+}
+```
+
+Every `locations[].target` must point to an existing node.
+
 ## Evidence System
 
 Evidence is optional but recommended for detective stories.
@@ -197,6 +273,53 @@ You can also define inline evidence directly on a node:
     {
       "text": "Keep searching",
       "target": "apartment_search"
+    }
+  ]
+}
+```
+
+## Inventory System
+
+Inventory is optional. Define important items globally when you want stable metadata:
+
+```json
+{
+  "inventory": [
+    {
+      "id": "locker_key",
+      "title": "Locker Key",
+      "description": "A brass key stamped 317."
+    }
+  ]
+}
+```
+
+Grant inventory from a node:
+
+```json
+{
+  "id": "find_key",
+  "type": "text",
+  "text": "The key was taped beneath the drawer.",
+  "items": ["locker_key"],
+  "choices": [
+    {
+      "text": "Return to the hallway",
+      "target": "hallway"
+    }
+  ]
+}
+```
+
+You can also grant inline inventory objects:
+
+```json
+{
+  "items": [
+    {
+      "id": "master_tape",
+      "title": "Master Tape",
+      "description": "The recording Miles hid before he vanished."
     }
   ]
 }
@@ -277,7 +400,6 @@ Use `type: "text"` for most of these:
 - Deduction
 - Climax
 - Ending
-- Inventory gain/use
 - Character/stat changes
 
 Use `type: "lore"` for:
@@ -293,6 +415,24 @@ Use `type: "puzzle"` for:
 - Passwords
 - Riddles
 - Deduction answers
+
+Use `type: "inventory"` for:
+
+- Item pickup scenes
+- Key item discovery
+- Optional tool collection
+
+Use `type: "evidence"` for:
+
+- Evidence discovery
+- Clue collection
+- Case-board additions
+
+Use `type: "map"` for:
+
+- Travel screens
+- Investigation hubs
+- Open location selection
 
 ## Recommended Detective Structure
 
@@ -325,7 +465,9 @@ Before packaging:
 - Every `lore.return_to` exists
 - Every `puzzle.correct_target` exists
 - Every `puzzle.incorrect_target` exists
+- Every `map.locations[].target` exists
 - Every evidence id is stable and lowercase snake_case
+- Every inventory id is stable and lowercase snake_case
 - Every node image path exists inside the `.gbk`
 - Package contains `story.json`
 - Package contains `poster.png`
