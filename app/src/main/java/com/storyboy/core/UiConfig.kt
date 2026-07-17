@@ -36,6 +36,8 @@ object UiConfig {
     object ImageSizes {
         val GamePosterListWidth = 72.dp
         val GamePosterListHeight = 104.dp
+        val GameBannerListWidth = 148.dp
+        val GameBannerListHeight = 84.dp
         val GamePosterGridWidth = 128.dp
         val GamePosterGridHeight = 184.dp
         val TitleScreenImageHeight = 220.dp

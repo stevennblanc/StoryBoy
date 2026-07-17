@@ -4,6 +4,10 @@ StoryBoy local adventures use the `.gbk` extension.
 
 A `.gbk` file is a ZIP package with a validated `story.json` file inside. It may also include images such as `poster.png` and `banner.png`.
 
+`poster.png` is the standard vertical cover image for book-style library display.
+
+`banner.png` is the standard horizontal image for cartridge-style library display.
+
 The Android app stores downloaded gamebooks in its app-specific internal storage:
 
 `context.filesDir/gamebooks`
@@ -50,6 +54,11 @@ StoryBoy rejects files that:
 - do not contain `metadata`
 - do not contain a non-empty `nodes` array
 - reference a `metadata.start_node` that is missing from `nodes`
+
+Artwork files are optional, but the preferred names are:
+
+- `poster.png`, `poster.jpg`, `cover.png`, or `cover.jpg`
+- `banner.png` or `banner.jpg`
 
 ## Store Index
 

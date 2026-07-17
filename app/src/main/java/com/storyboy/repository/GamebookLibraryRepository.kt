@@ -14,9 +14,12 @@ class GamebookLibraryRepository(context: Context) {
         return storage.listGamebookFiles().mapNotNull { file ->
             runCatching {
                 val metadata = storage.readMetadata(file)
+                val artwork = storage.extractArtwork(file, metadata)
                 LocalGamebook(
                     metadata = metadata,
                     filePath = file.absolutePath,
+                    posterPath = artwork.posterPath,
+                    bannerPath = artwork.bannerPath,
                     hasPlaythroughInProgress = progressPrefs.getBoolean(metadata.id, false),
                 )
             }.getOrNull()

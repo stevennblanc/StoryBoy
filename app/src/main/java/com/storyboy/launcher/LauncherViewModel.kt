@@ -33,6 +33,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun selectLibraryDisplayMode(displayMode: LibraryDisplayMode) {
+        mutableState.update { it.copy(libraryDisplayMode = displayMode) }
+    }
+
     fun refreshLibrary() {
         mutableState.update { it.copy(isLoadingLibrary = true, message = null) }
         viewModelScope.launch {

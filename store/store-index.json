@@ -1,3 +1,12 @@
 {
-  "gamebooks": []
+  "gamebooks": [
+    {
+      "id": "the_long_shadow",
+      "title": "The Long Shadow",
+      "author": "Steven Blanc",
+      "version": "0.1.0-test",
+      "description": "A 1990s noir mystery featuring former police detective Nathan Reed.",
+      "downloadUrl": "https://github.com/stevennblanc/StoryBoy-Adventures/releases/latest/download/the-long-shadow.gbk"
+    }
+  ]
 }

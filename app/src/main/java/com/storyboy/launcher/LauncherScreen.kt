@@ -1,8 +1,10 @@
 package com.storyboy.launcher
 
+import android.graphics.BitmapFactory
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,8 +26,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import com.storyboy.core.AppConfig
 import com.storyboy.core.UiConfig
 import com.storyboy.models.LocalGamebook
@@ -66,7 +71,9 @@ fun LauncherScreen(
             LauncherTab.Library -> LibraryPage(
                 isLoading = launcherState.isLoadingLibrary,
                 books = launcherState.library,
+                displayMode = launcherState.libraryDisplayMode,
                 onRefresh = launcherViewModel::refreshLibrary,
+                onDisplayModeChange = launcherViewModel::selectLibraryDisplayMode,
                 onOpen = { gamebook ->
                     launcherViewModel.markStarted(gamebook)
                     onOpenGamebook(gamebook)
@@ -131,7 +138,9 @@ private fun LauncherTabs(
 private fun LibraryPage(
     isLoading: Boolean,
     books: List<LocalGamebook>,
+    displayMode: LibraryDisplayMode,
     onRefresh: () -> Unit,
+    onDisplayModeChange: (LibraryDisplayMode) -> Unit,
     onOpen: (LocalGamebook) -> Unit,
 ) {
     Column(
@@ -142,6 +151,22 @@ private fun LibraryPage(
             Button(onClick = onRefresh) {
                 Text("Refresh")
             }
+            LibraryDisplayMode.values().forEach { mode ->
+                TextButton(
+                    onClick = { onDisplayModeChange(mode) },
+                    modifier = Modifier.border(
+                        width = UiConfig.Controls.FocusThickness,
+                        color = if (displayMode == mode) {
+                            UiConfig.ThemeColors.FocusCol
+                        } else {
+                            UiConfig.ThemeColors.SubDivider
+                        },
+                        shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
+                    ),
+                ) {
+                    Text(mode.name)
+                }
+            }
         }
 
         if (isLoading) {
@@ -151,7 +176,11 @@ private fun LibraryPage(
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer)) {
                 items(books, key = { it.metadata.id }) { book ->
-                    LocalGamebookRow(book = book, onOpen = { onOpen(book) })
+                    LocalGamebookRow(
+                        book = book,
+                        displayMode = displayMode,
+                        onOpen = { onOpen(book) },
+                    )
                 }
             }
         }
@@ -190,6 +219,7 @@ private fun StorePage(
 @Composable
 private fun LocalGamebookRow(
     book: LocalGamebook,
+    displayMode: LibraryDisplayMode,
     onOpen: () -> Unit,
 ) {
     GamebookRow(
@@ -198,6 +228,11 @@ private fun LocalGamebookRow(
         description = book.metadata.description,
         status = if (book.hasPlaythroughInProgress) "In progress" else "New",
         action = "Open",
+        artworkPath = when (displayMode) {
+            LibraryDisplayMode.Book -> book.posterPath
+            LibraryDisplayMode.Cartridge -> book.bannerPath ?: book.posterPath
+        },
+        displayMode = displayMode,
         onAction = onOpen,
         modifier = Modifier.clickable(onClick = onOpen),
     )
@@ -214,6 +249,8 @@ private fun StoreGamebookRow(
         description = book.metadata.description,
         status = if (book.isDownloaded) "Downloaded" else "Available",
         action = if (book.isDownloaded) "Saved" else "Download",
+        artworkPath = null,
+        displayMode = LibraryDisplayMode.Book,
         onAction = onDownload,
     )
 }
@@ -225,6 +262,8 @@ private fun GamebookRow(
     description: String,
     status: String,
     action: String,
+    artworkPath: String?,
+    displayMode: LibraryDisplayMode,
     onAction: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -241,7 +280,10 @@ private fun GamebookRow(
         horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PosterPlaceholder()
+        GamebookArtwork(
+            artworkPath = artworkPath,
+            displayMode = displayMode,
+        )
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
@@ -258,11 +300,26 @@ private fun GamebookRow(
 }
 
 @Composable
-private fun PosterPlaceholder() {
+private fun GamebookArtwork(
+    artworkPath: String?,
+    displayMode: LibraryDisplayMode,
+) {
+    val bitmap = remember(artworkPath) {
+        artworkPath?.let(BitmapFactory::decodeFile)
+    }
+    val width = when (displayMode) {
+        LibraryDisplayMode.Book -> UiConfig.ImageSizes.GamePosterListWidth
+        LibraryDisplayMode.Cartridge -> UiConfig.ImageSizes.GameBannerListWidth
+    }
+    val height = when (displayMode) {
+        LibraryDisplayMode.Book -> UiConfig.ImageSizes.GamePosterListHeight
+        LibraryDisplayMode.Cartridge -> UiConfig.ImageSizes.GameBannerListHeight
+    }
+
     Box(
         modifier = Modifier
-            .width(UiConfig.ImageSizes.GamePosterListWidth)
-            .height(UiConfig.ImageSizes.GamePosterListHeight)
+            .width(width)
+            .height(height)
             .background(UiConfig.ThemeColors.BackgroundCol, RoundedCornerShape(UiConfig.Controls.PosterCornerRadius))
             .border(
                 width = UiConfig.Controls.FocusThickness,
@@ -271,10 +328,19 @@ private fun PosterPlaceholder() {
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = AppConfig.GamebookExtension,
-            style = MaterialTheme.typography.bodyMedium,
-        )
+        if (bitmap == null) {
+            Text(
+                text = AppConfig.GamebookExtension,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        } else {
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        }
     }
 }
 

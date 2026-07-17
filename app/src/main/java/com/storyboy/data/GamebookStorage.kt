@@ -2,6 +2,7 @@ package com.storyboy.data
 
 import android.content.Context
 import com.storyboy.core.AppConfig
+import com.storyboy.models.GamebookArtwork
 import com.storyboy.models.GamebookMetadata
 import java.io.File
 import java.net.HttpURLConnection
@@ -11,6 +12,9 @@ import java.util.zip.ZipFile
 class GamebookStorage(private val context: Context) {
     private val gamebooksDir: File
         get() = File(context.filesDir, AppConfig.GamebooksDirectory).apply { mkdirs() }
+
+    private val artworkDir: File
+        get() = File(context.filesDir, "gamebook_art").apply { mkdirs() }
 
     fun listGamebookFiles(): List<File> {
         return gamebooksDir
@@ -31,6 +35,28 @@ class GamebookStorage(private val context: Context) {
         return GamebookParser.parseMetadata(storyJson)
     }
 
+    fun extractArtwork(file: File, metadata: GamebookMetadata): GamebookArtwork {
+        val bookArtworkDir = File(artworkDir, metadata.id).apply { mkdirs() }
+        var posterPath: String? = null
+        var bannerPath: String? = null
+
+        ZipFile(file).use { zipFile ->
+            posterPath = zipFile.extractFirstMatching(
+                candidates = listOf("poster.png", "poster.jpg", "cover.png", "cover.jpg"),
+                targetDir = bookArtworkDir,
+            )
+            bannerPath = zipFile.extractFirstMatching(
+                candidates = listOf("banner.png", "banner.jpg"),
+                targetDir = bookArtworkDir,
+            )
+        }
+
+        return GamebookArtwork(
+            posterPath = posterPath,
+            bannerPath = bannerPath,
+        )
+    }
+
     fun downloadGamebook(url: String): File {
         val tempFile = File.createTempFile("storyboy-download", ".${AppConfig.GamebookExtension}", context.cacheDir)
 
@@ -48,6 +74,20 @@ class GamebookStorage(private val context: Context) {
         tempFile.delete()
         return targetFile
     }
+}
+
+private fun ZipFile.extractFirstMatching(
+    candidates: List<String>,
+    targetDir: File,
+): String? {
+    val entry = candidates.firstNotNullOfOrNull { candidate -> getEntry(candidate) } ?: return null
+    val targetFile = File(targetDir, entry.name.substringAfterLast('/'))
+    getInputStream(entry).use { input ->
+        targetFile.outputStream().use { output ->
+            input.copyTo(output)
+        }
+    }
+    return targetFile.absolutePath
 }
 
 private fun java.net.URLConnection.asHttpConnection(): HttpURLConnection {
