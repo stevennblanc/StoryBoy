@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.storyboy.core.AppearanceMode
 import com.storyboy.core.AppearanceSettingsRepository
+import com.storyboy.core.MotionMode
 import com.storyboy.core.ThemeManager
 import com.storyboy.core.UiConfig
 import com.storyboy.core.UserProfile
@@ -204,6 +205,41 @@ private fun SettingsScreen(
                 valueRange = AppearanceSettingsRepository.MinFontScale..AppearanceSettingsRepository.MaxFontScale,
                 steps = 9,
             )
+
+            HorizontalDivider(color = colors.SubDivider)
+
+            Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap)) {
+                Text(text = "Motion", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    text = motionModeDescription(settings.motionMode),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
+                ) {
+                    MotionModeButton(
+                        label = "Full",
+                        selected = settings.motionMode == MotionMode.Full,
+                        onClick = { appearanceRepository.setMotionMode(MotionMode.Full) },
+                        modifier = Modifier.weight(1f),
+                    )
+                    MotionModeButton(
+                        label = "Reduced",
+                        selected = settings.motionMode == MotionMode.Reduced,
+                        onClick = { appearanceRepository.setMotionMode(MotionMode.Reduced) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                MotionModeButton(
+                    label = "None",
+                    selected = settings.motionMode == MotionMode.None,
+                    onClick = { appearanceRepository.setMotionMode(MotionMode.None) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
 
         SettingPanel(title = "App updates") {
@@ -232,6 +268,43 @@ private fun SettingsScreen(
                 Text("Choice button preview")
             }
         }
+    }
+}
+
+@Composable
+private fun MotionModeButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = ThemeManager.colors
+    val buttonColors = if (selected) {
+        ButtonDefaults.buttonColors(
+            containerColor = colors.AccentCol,
+            contentColor = colors.BackgroundCol,
+        )
+    } else {
+        ButtonDefaults.buttonColors(
+            containerColor = colors.ReaderChoiceCol,
+            contentColor = colors.ReaderText,
+        )
+    }
+
+    Button(
+        onClick = onClick,
+        modifier = modifier,
+        colors = buttonColors,
+    ) {
+        Text(label)
+    }
+}
+
+private fun motionModeDescription(motionMode: MotionMode): String {
+    return when (motionMode) {
+        MotionMode.Full -> "Android can use short transitions, highlights, and rolls when useful."
+        MotionMode.Reduced -> "Android keeps feedback mostly static with minimal motion."
+        MotionMode.None -> "E-ink style: direct redraws and persistent feedback only."
     }
 }
 

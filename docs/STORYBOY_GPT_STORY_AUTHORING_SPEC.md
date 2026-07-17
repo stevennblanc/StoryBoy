@@ -60,6 +60,8 @@ Node ids must be unique.
 
 All choice targets, return targets, puzzle targets, and future node references must point to existing node ids.
 
+Do not put platform animation instructions in `story.json`. Nodes should describe story meaning, collected items, evidence, choices, images, puzzles, maps, and battle rules. Android, e-ink, and future renderers decide how those events are presented.
+
 ## Supported Runtime Node Types
 
 ### 1. Text Node
@@ -465,6 +467,16 @@ Image rules:
 - Put in-story images in a folder such as `images/`
 - Every referenced image path must exist in the `.gbk`
 - Images are optional; do not add decorative images that do not help the story
+
+## Presentation Compatibility
+
+StoryBoy supports Android and future e-ink/ESP32 presentation modes.
+
+Authors should write static, durable story moments. If a scene gains evidence, grants an item, resolves a battle, or answers a puzzle, the JSON should express that result semantically. Do not request animations such as dice rolls, fades, flashing panels, popups, or timed effects from the gamebook.
+
+The renderer may add motion on Android, but every important moment must also work as a static page or persistent result message.
+
+See `docs/PRESENTATION_MODE_STANDARD.md` in the StoryBoy project.
 
 ## Story Design Categories
 

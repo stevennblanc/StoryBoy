@@ -14,9 +14,16 @@ enum class AppearanceMode {
     Dark,
 }
 
+enum class MotionMode {
+    Full,
+    Reduced,
+    None,
+}
+
 data class AppearanceSettings(
     val mode: AppearanceMode = AppearanceMode.Dark,
     val fontScale: Float = 1f,
+    val motionMode: MotionMode = MotionMode.Full,
 )
 
 class AppearanceSettingsRepository(context: Context) {
@@ -29,10 +36,14 @@ class AppearanceSettingsRepository(context: Context) {
         val mode = runCatching {
             AppearanceMode.valueOf(preferences.getString(KeyMode, AppearanceMode.Dark.name) ?: AppearanceMode.Dark.name)
         }.getOrDefault(AppearanceMode.Dark)
+        val motionMode = runCatching {
+            MotionMode.valueOf(preferences.getString(KeyMotionMode, DefaultMotionMode.name) ?: DefaultMotionMode.name)
+        }.getOrDefault(DefaultMotionMode)
 
         return AppearanceSettings(
             mode = mode,
             fontScale = preferences.getFloat(KeyFontScale, DefaultFontScale).coerceIn(MinFontScale, MaxFontScale),
+            motionMode = motionMode,
         )
     }
 
@@ -42,6 +53,10 @@ class AppearanceSettingsRepository(context: Context) {
 
     fun setFontScale(fontScale: Float) {
         preferences.edit().putFloat(KeyFontScale, fontScale.coerceIn(MinFontScale, MaxFontScale)).apply()
+    }
+
+    fun setMotionMode(motionMode: MotionMode) {
+        preferences.edit().putString(KeyMotionMode, motionMode.name).apply()
     }
 
     fun registerListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
@@ -56,10 +71,12 @@ class AppearanceSettingsRepository(context: Context) {
         const val MinFontScale = 0.85f
         const val MaxFontScale = 1.35f
         const val DefaultFontScale = 1f
+        val DefaultMotionMode = MotionMode.Full
 
         private const val PreferencesName = "storyboy_appearance"
         private const val KeyMode = "mode"
         private const val KeyFontScale = "font_scale"
+        private const val KeyMotionMode = "motion_mode"
     }
 }
 

@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.TextUnit
 object ThemeManager {
     private val LocalColors = staticCompositionLocalOf { UiConfig.ThemeColors.Dark }
     private val LocalFontScale = staticCompositionLocalOf { AppearanceSettingsRepository.DefaultFontScale }
+    private val LocalMotionMode = staticCompositionLocalOf { AppearanceSettingsRepository.DefaultMotionMode }
 
     private val shapes = Shapes(
         small = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
@@ -27,6 +28,9 @@ object ThemeManager {
 
     val fontScale: Float
         @Composable get() = LocalFontScale.current
+
+    val motionMode: MotionMode
+        @Composable get() = LocalMotionMode.current
 
     @Composable
     fun StoryBoyTheme(content: @Composable () -> Unit) {
@@ -63,6 +67,7 @@ object ThemeManager {
         CompositionLocalProvider(
             LocalColors provides colors,
             LocalFontScale provides settings.fontScale,
+            LocalMotionMode provides settings.motionMode,
         ) {
             MaterialTheme(
                 colorScheme = colorScheme,

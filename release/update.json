@@ -1,6 +1,6 @@
 {
-  "versionCode": 16,
-  "versionName": "0.16.0",
+  "versionCode": 17,
+  "versionName": "0.17.0",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "Adds first-run Browse Store path and richer static book detail pages for e-ink-friendly onboarding."
+  "releaseNotes": "Adds motion mode settings and a presentation standard for Android and e-ink parity."
 }

@@ -70,3 +70,13 @@ Good uses:
 - resolving a risky tactic
 
 Books that do not need chance-based scenes can ignore battle nodes entirely.
+
+## Presentation and Motion
+
+StoryBoy must support both richer Android presentation and motion-free e-ink presentation.
+
+Runtime nodes should produce story state and semantic events, not animation instructions. For example, a battle node can produce a `BattleResolved` event, but the book should not request a dice animation directly.
+
+Every animated Android treatment must have a static equivalent for e-ink and reduced-motion use.
+
+See [StoryBoy Presentation Mode Standard](PRESENTATION_MODE_STANDARD.md).
