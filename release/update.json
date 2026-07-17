@@ -1,6 +1,6 @@
 {
-  "versionCode": 1,
-  "versionName": "0.1.0",
+  "versionCode": 2,
+  "versionName": "0.2.0",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "Initial StoryBoy Android foundation."
+  "releaseNotes": "Adds the offline library, gamebook storage, and store shelf foundation."
 }

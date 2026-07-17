@@ -52,6 +52,8 @@ object UiConfig {
     object Controls {
         val ButtonRadius = 6.dp
         val FocusThickness = 2.dp
+        val PosterCornerRadius = 4.dp
+        val MinimumTouchTarget = 48.dp
     }
 
     object AnimationDurations {

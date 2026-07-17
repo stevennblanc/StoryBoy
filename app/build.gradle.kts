@@ -12,12 +12,17 @@ android {
         applicationId = "com.storyboy"
         minSdk = 31
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
         buildConfigField(
             "String",
             "UPDATE_MANIFEST_URL",
             "\"https://github.com/stevennblanc/StoryBoy/releases/latest/download/update.json\"",
+        )
+        buildConfigField(
+            "String",
+            "STORE_INDEX_URL",
+            "\"https://github.com/stevennblanc/StoryBoy-Adventures/releases/latest/download/store-index.json\"",
         )
     }
 

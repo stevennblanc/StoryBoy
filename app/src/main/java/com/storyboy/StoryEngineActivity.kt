@@ -19,6 +19,7 @@ class StoryEngineActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val gameId = intent.getStringExtra(Navigation.ExtraGameId).orEmpty()
+        val gamebookPath = intent.getStringExtra(Navigation.ExtraGamebookPath).orEmpty()
 
         setContent {
             ThemeManager.StoryBoyTheme {
@@ -30,7 +31,7 @@ class StoryEngineActivity : ComponentActivity() {
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "Story engine ready: $gameId",
+                        text = "Story engine ready: $gameId\n$gamebookPath",
                         style = androidx.compose.material3.MaterialTheme.typography.bodyLarge,
                     )
                 }

@@ -7,12 +7,15 @@ import com.storyboy.StoryEngineActivity
 
 object Navigation {
     const val ExtraGameId = "com.storyboy.extra.GAME_ID"
+    const val ExtraGamebookPath = "com.storyboy.extra.GAMEBOOK_PATH"
 
     fun menuLauncherIntent(context: Context): Intent {
         return Intent(context, MenuLauncherActivity::class.java)
     }
 
-    fun storyEngineIntent(context: Context, gameId: String): Intent {
-        return Intent(context, StoryEngineActivity::class.java).putExtra(ExtraGameId, gameId)
+    fun storyEngineIntent(context: Context, gameId: String, gamebookPath: String): Intent {
+        return Intent(context, StoryEngineActivity::class.java)
+            .putExtra(ExtraGameId, gameId)
+            .putExtra(ExtraGamebookPath, gamebookPath)
     }
 }
