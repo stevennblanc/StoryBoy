@@ -6,6 +6,7 @@ import com.storyboy.models.GamebookMetadata
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.zip.ZipFile
 
 class GamebookStorage(private val context: Context) {
     private val gamebooksDir: File
@@ -22,7 +23,12 @@ class GamebookStorage(private val context: Context) {
         require(file.extension == AppConfig.GamebookExtension) {
             "StoryBoy only loads .${AppConfig.GamebookExtension} files."
         }
-        return GamebookParser.parseMetadata(file.readText())
+        val storyJson = ZipFile(file).use { zipFile ->
+            val storyEntry = zipFile.getEntry("story.json")
+                ?: error("Gamebook package must contain story.json.")
+            zipFile.getInputStream(storyEntry).bufferedReader().use { it.readText() }
+        }
+        return GamebookParser.parseMetadata(storyJson)
     }
 
     fun downloadGamebook(url: String): File {
@@ -50,7 +56,7 @@ private fun java.net.URLConnection.asHttpConnection(): HttpURLConnection {
         readTimeout = 30_000
         requestMethod = "GET"
         instanceFollowRedirects = true
-        setRequestProperty("Accept", "application/json")
+        setRequestProperty("Accept", "application/octet-stream, application/zip")
     }
 }
 

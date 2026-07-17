@@ -4,7 +4,7 @@ import com.storyboy.BuildConfig
 
 object AppConfig {
     const val AppName = "StoryBoy"
-    const val GamebookExtension = "gamebook"
+    const val GamebookExtension = "gbk"
     const val GamebooksDirectory = "gamebooks"
     const val ProgressPreferences = "storyboy_progress"
     const val UpdateApkFileName = "storyboy-update.apk"
