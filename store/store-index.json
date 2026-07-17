@@ -7,7 +7,9 @@
       "genre": "Detective Noir",
       "version": "0.3.0-test",
       "description": "A complete 1990s noir test adventure featuring former police detective Nathan Reed.",
-      "downloadUrl": "https://github.com/stevennblanc/StoryBoy-Adventures/releases/latest/download/the-long-shadow.gbk"
+      "downloadUrl": "https://github.com/stevennblanc/StoryBoy-Adventures/releases/latest/download/the-long-shadow.gbk",
+      "posterUrl": "https://github.com/stevennblanc/StoryBoy-Adventures/releases/latest/download/the-long-shadow-poster.png",
+      "bannerUrl": "https://github.com/stevennblanc/StoryBoy-Adventures/releases/latest/download/the-long-shadow-banner.png"
     }
   ]
 }

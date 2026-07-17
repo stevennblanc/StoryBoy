@@ -141,6 +141,7 @@ fun LauncherScreen(
                         LauncherTab.Store -> StoreShelf(
                             isLoading = state.isLoadingStore,
                             books = filteredStore,
+                            displayMode = state.libraryDisplayMode,
                             onSelect = launcherViewModel::selectStoreGamebook,
                         )
                     }
@@ -248,26 +249,26 @@ private fun LauncherHeader(
                     }
                 }
             }
-            if (selectedTab == LauncherTab.Library) {
-                Box {
-                    IconButton(onClick = { viewMenuOpen = true }) {
-                        StoryBoyIcon(kind = StoryBoyIconKind.Sort, color = ThemeManager.colors.BodyText)
-                    }
-                    DropdownMenu(expanded = viewMenuOpen, onDismissRequest = { viewMenuOpen = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Book view") },
-                            onClick = {
-                                onDisplayModeChange(LibraryDisplayMode.Book)
-                                viewMenuOpen = false
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("List view") },
-                            onClick = {
-                                onDisplayModeChange(LibraryDisplayMode.Cartridge)
-                                viewMenuOpen = false
-                            },
-                        )
+            Box {
+                IconButton(onClick = { viewMenuOpen = true }) {
+                    StoryBoyIcon(kind = StoryBoyIconKind.Sort, color = ThemeManager.colors.BodyText)
+                }
+                DropdownMenu(expanded = viewMenuOpen, onDismissRequest = { viewMenuOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Book view") },
+                        onClick = {
+                            onDisplayModeChange(LibraryDisplayMode.Book)
+                            viewMenuOpen = false
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("List view") },
+                        onClick = {
+                            onDisplayModeChange(LibraryDisplayMode.Cartridge)
+                            viewMenuOpen = false
+                        },
+                    )
+                    if (selectedTab == LauncherTab.Library) {
                         HorizontalDivider(color = ThemeManager.colors.SubDivider)
                         LibrarySortMode.values().forEach { mode ->
                             DropdownMenuItem(
@@ -371,12 +372,14 @@ private fun LibraryShelf(
 private fun StoreShelf(
     isLoading: Boolean,
     books: List<StoreGamebook>,
+    displayMode: LibraryDisplayMode,
     onSelect: (StoreGamebook) -> Unit,
 ) {
     when {
         isLoading -> ProgressText("Loading store")
         books.isEmpty() -> EmptyState("No adventures available")
-        else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer)) {
+        displayMode == LibraryDisplayMode.Book -> StoreGrid(books = books, onSelect = onSelect)
+        else -> LazyColumn {
             items(books, key = { it.metadata.id }) { book ->
                 StoreRow(book = book, onSelect = { onSelect(book) })
             }
@@ -434,26 +437,55 @@ private fun CartridgeList(
     books: List<LocalGamebook>,
     onSelect: (LocalGamebook) -> Unit,
 ) {
-    val colors = ThemeManager.colors
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer)) {
+    LazyColumn {
         items(books, key = { it.metadata.id }) { book ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onSelect(book) }
-                    .background(colors.SurfaceCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
-                    .padding(UiConfig.Spacing.ListBuffer),
-                horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            LocalBookRow(book = book, onSelect = { onSelect(book) })
+            HorizontalDivider(color = ThemeManager.colors.SubDivider)
+        }
+    }
+}
+
+@Composable
+private fun LocalBookRow(
+    book: LocalGamebook,
+    onSelect: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelect)
+            .padding(vertical = UiConfig.Spacing.ListBuffer),
+        horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ArtworkFrame(
+            artworkPath = book.bannerPath ?: book.posterPath,
+            displayMode = LibraryDisplayMode.Cartridge,
+            modifier = Modifier.width(UiConfig.ImageSizes.GameBannerListWidth),
+        )
+        BookListSummary(
+            metadata = book.metadata,
+            status = if (book.hasPlaythroughInProgress) "In progress" else "New",
+        )
+    }
+}
+
+@Composable
+private fun StoreGrid(
+    books: List<StoreGamebook>,
+    onSelect: (StoreGamebook) -> Unit,
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(3),
+        horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.GridBuffer),
+        verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.GridBuffer),
+    ) {
+        items(books, key = { it.metadata.id }) { book ->
+            Box(modifier = Modifier.clickable { onSelect(book) }) {
                 ArtworkFrame(
-                    artworkPath = book.bannerPath ?: book.posterPath,
-                    displayMode = LibraryDisplayMode.Cartridge,
-                    modifier = Modifier.width(UiConfig.ImageSizes.GameBannerListWidth),
-                )
-                BookListSummary(
-                    metadata = book.metadata,
-                    status = if (book.hasPlaythroughInProgress) "In progress" else "New",
+                    artworkPath = book.posterPath,
+                    displayMode = LibraryDisplayMode.Book,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }
@@ -471,7 +503,7 @@ private fun BookListSummary(
     ) {
         Text(
             text = metadata.title,
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.bodyLarge,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -495,39 +527,22 @@ private fun StoreRow(
     book: StoreGamebook,
     onSelect: () -> Unit,
 ) {
-    val colors = ThemeManager.colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onSelect)
-            .background(colors.SurfaceCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
-            .padding(UiConfig.Spacing.ListBuffer),
+            .padding(vertical = UiConfig.Spacing.ListBuffer),
         horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ArtworkFrame(
-            artworkPath = null,
-            displayMode = LibraryDisplayMode.Book,
-            modifier = Modifier.width(UiConfig.ImageSizes.StorePosterWidth),
+            artworkPath = book.bannerPath ?: book.posterPath,
+            displayMode = LibraryDisplayMode.Cartridge,
+            modifier = Modifier.width(UiConfig.ImageSizes.GameBannerListWidth),
         )
-        BookSummary(metadata = book.metadata, status = book.storeStatusText())
+        BookListSummary(metadata = book.metadata, status = book.storeStatusText())
     }
-}
-
-@Composable
-private fun BookSummary(
-    metadata: GamebookMetadata,
-    status: String,
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
-    ) {
-        Text(text = metadata.title, style = MaterialTheme.typography.headlineMedium)
-        Text(text = "${metadata.author} - ${metadata.genre}", style = MaterialTheme.typography.bodyMedium)
-        Text(text = metadata.description, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        Text(text = status, style = MaterialTheme.typography.labelLarge)
-    }
+    HorizontalDivider(color = ThemeManager.colors.SubDivider)
 }
 
 @Composable
@@ -561,7 +576,7 @@ private fun StoreGamebookDetail(
 ) {
     DetailPanel(onClose = onClose) {
         ArtworkFrame(
-            artworkPath = null,
+            artworkPath = gamebook.posterPath,
             displayMode = LibraryDisplayMode.Book,
             modifier = Modifier.width(UiConfig.ImageSizes.GamePosterGridWidth),
         )
