@@ -11,6 +11,24 @@ A StoryBoy `.gbk` file is a ZIP package containing:
 
 `story.json` must be valid JSON.
 
+## Artwork Standards
+
+Every `.gbk` package should include:
+
+| File | Purpose | Aspect Ratio | Recommended Size | Minimum Size |
+| --- | --- | --- | --- | --- |
+| `poster.png` | Vertical cover for book/grid library display | `2:3` | `1024 x 1536` | `600 x 900` |
+| `banner.png` | Horizontal art for cartridge/list display | `3:2` | `1536 x 1024` | `900 x 600` |
+
+Artwork rules:
+
+- `.png` is preferred; `.jpg` is allowed for smaller file sizes
+- Keep titles, logos, faces, and key objects away from the edges because display modes may crop slightly
+- Covers may use color, but must remain readable in grayscale for e-ink compatibility
+- Avoid relying on color alone for important information
+- Use high contrast text and simple compositions when possible
+- `poster.png` and `banner.png` should represent the same gamebook, but they do not need to use identical artwork
+
 ## Top-Level Structure
 
 ```json
@@ -462,6 +480,8 @@ Image rules:
 
 - Use `.png` or `.jpg`
 - Keep image dimensions reasonable for mobile and e-ink targets
+- Use `poster.png` at `1024 x 1536` when possible; preserve a `2:3` vertical aspect ratio
+- Use `banner.png` at `1536 x 1024` when possible; preserve a `3:2` horizontal aspect ratio
 - Use `poster.png` only for the library cover
 - Use `banner.png` only for the cartridge/banner display
 - Put in-story images in a folder such as `images/`
@@ -575,6 +595,8 @@ Before packaging:
 - Package contains `story.json`
 - Package contains `poster.png`
 - Package contains `banner.png`
+- `poster.png` is vertical `2:3`, ideally `1024 x 1536` and at least `600 x 900`
+- `banner.png` is horizontal `3:2`, ideally `1536 x 1024` and at least `900 x 600`
 - Metadata uses `"cover_image": "poster.png"`
 - Metadata uses `"title_image": "banner.png"`
 

@@ -10,6 +10,24 @@ A `.gbk` file is a ZIP package with a validated `story.json` file inside. It may
 
 Additional story images may be packaged and referenced by nodes. These are useful for maps, clue drawings, diagrams, letters, and other meaningful visuals.
 
+## Artwork Standards
+
+StoryBoy uses two standard package artwork files:
+
+| File | Purpose | Aspect Ratio | Recommended Size | Minimum Size |
+| --- | --- | --- | --- | --- |
+| `poster.png` | Vertical cover for book/grid library display | `2:3` | `1024 x 1536` | `600 x 900` |
+| `banner.png` | Horizontal art for cartridge/list display | `3:2` | `1536 x 1024` | `900 x 600` |
+
+Rules:
+
+- `.png` is preferred; `.jpg` is allowed for smaller file sizes
+- Keep titles, logos, and important faces away from the edges because display modes may crop slightly
+- Covers may use color, but should remain readable in grayscale for e-ink compatibility
+- Avoid relying on color alone for important information
+- Use high contrast text and simple compositions when possible
+- `poster.png` and `banner.png` should represent the same gamebook, but they do not need to use identical artwork
+
 The Android app stores downloaded gamebooks in its app-specific internal storage:
 
 `context.filesDir/gamebooks`

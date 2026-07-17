@@ -55,6 +55,19 @@ Example uses:
 
 Genres that do not need evidence can ignore the system entirely.
 
+## Artwork Standards
+
+Gamebooks should include package artwork for both supported library views.
+
+| File | Purpose | Aspect Ratio | Recommended Size | Minimum Size |
+| --- | --- | --- | --- | --- |
+| `poster.png` | Vertical cover for book/grid display | `2:3` | `1024 x 1536` | `600 x 900` |
+| `banner.png` | Horizontal art for cartridge/list display | `3:2` | `1536 x 1024` | `900 x 600` |
+
+Artwork can be in color, but should remain readable in grayscale for e-ink compatibility. Keep important text and faces away from edges because display modes may crop slightly.
+
+See [Gamebook Files](GAMEBOOK_FORMAT.md) for the full package artwork rules.
+
 ## Battle System
 
 Battle nodes are a lightweight dice system for games that want risk without requiring a full RPG rules engine.
