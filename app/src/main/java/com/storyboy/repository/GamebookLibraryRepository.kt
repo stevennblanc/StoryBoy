@@ -20,13 +20,17 @@ class GamebookLibraryRepository(context: Context) {
                     filePath = file.absolutePath,
                     posterPath = artwork.posterPath,
                     bannerPath = artwork.bannerPath,
-                    hasPlaythroughInProgress = progressPrefs.getBoolean(metadata.id, false),
+                    hasPlaythroughInProgress = progressPrefs.contains(currentNodeKey(metadata.id)),
                 )
             }.getOrNull()
         }
     }
 
     fun markPlaythroughStarted(gamebookId: String) {
-        progressPrefs.edit().putBoolean(gamebookId, true).apply()
+        progressPrefs.edit().putBoolean(startedKey(gamebookId), true).apply()
     }
+
+    private fun currentNodeKey(gamebookId: String): String = "current_node_$gamebookId"
+
+    private fun startedKey(gamebookId: String): String = "started_$gamebookId"
 }

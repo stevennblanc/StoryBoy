@@ -16,6 +16,7 @@ object StoreIndexParser {
                     id = item.getString("id"),
                     title = item.getString("title"),
                     author = item.optString("author", "Unknown author"),
+                    genre = item.optString("genre", "Gamebook"),
                     version = item.optString("version", "1.0.0"),
                     description = item.optString("description"),
                     startNodeId = item.optString("startNodeId"),

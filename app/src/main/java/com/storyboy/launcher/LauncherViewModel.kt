@@ -27,7 +27,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun selectTab(tab: LauncherTab) {
-        mutableState.update { it.copy(selectedTab = tab, message = null) }
+        mutableState.update {
+            it.copy(
+                selectedTab = tab,
+                selectedLocalGamebook = null,
+                selectedStoreGamebook = null,
+                message = null,
+            )
+        }
         if (tab == LauncherTab.Store && mutableState.value.store.isEmpty()) {
             refreshStore()
         }
@@ -35,6 +42,27 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun selectLibraryDisplayMode(displayMode: LibraryDisplayMode) {
         mutableState.update { it.copy(libraryDisplayMode = displayMode) }
+    }
+
+    fun updateSearchQuery(query: String) {
+        mutableState.update { it.copy(searchQuery = query) }
+    }
+
+    fun selectLocalGamebook(gamebook: LocalGamebook) {
+        mutableState.update { it.copy(selectedLocalGamebook = gamebook) }
+    }
+
+    fun selectStoreGamebook(gamebook: StoreGamebook) {
+        mutableState.update { it.copy(selectedStoreGamebook = gamebook) }
+    }
+
+    fun closeDetail() {
+        mutableState.update {
+            it.copy(
+                selectedLocalGamebook = null,
+                selectedStoreGamebook = null,
+            )
+        }
     }
 
     fun refreshLibrary() {
@@ -81,6 +109,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             }.onSuccess {
                 refreshLibrary()
                 refreshStore()
+                mutableState.update { it.copy(selectedStoreGamebook = null) }
             }.onFailure { throwable ->
                 mutableState.update {
                     it.copy(

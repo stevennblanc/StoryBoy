@@ -30,6 +30,7 @@ first-adventure.gbk
   "metadata": {
     "title": "First Adventure",
     "author": "StoryBoy",
+    "genre": "Fantasy",
     "description": "A small test adventure.",
     "folder": "first_adventure",
     "start_node": "start",
@@ -71,6 +72,7 @@ The future free-adventure repository should publish a `store-index.json` file.
       "id": "first-adventure",
       "title": "First Adventure",
       "author": "StoryBoy",
+      "genre": "Fantasy",
       "version": "1.0.0",
       "description": "A small test adventure.",
       "downloadUrl": "https://example.com/first-adventure.gbk"

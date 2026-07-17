@@ -18,19 +18,26 @@ object UiConfig {
         val Secondary1 = 20.sp
         val Secondary2 = 16.sp
         val Secondary3 = 12.sp
+        val ReaderLineHeight = 28.sp
     }
 
     object ThemeColors {
-        val Heading1Text = Color(0xFFEDEDED)
-        val Heading2Text = Color(0xFFD6D6D6)
-        val BodyText = Color(0xFFE8E2D2)
-        val TopBarText = Color(0xFFF2F2F2)
-        val BackgroundCol = Color(0xFF141414)
-        val SurfaceCol = Color(0xFF202020)
-        val MainDivider = Color(0xFF6C6657)
-        val SubDivider = Color(0xFF3D3A33)
-        val FocusCol = Color(0xFFD8C26A)
-        val AccentCol = Color(0xFF8CCFC1)
+        val Heading1Text = Color(0xFFF5F5F5)
+        val Heading2Text = Color(0xFFE2E2E2)
+        val BodyText = Color(0xFFD8D8D8)
+        val TopBarText = Color(0xFFF0F0F0)
+        val BackgroundCol = Color(0xFF101010)
+        val SurfaceCol = Color(0xFF1B1B1B)
+        val ElevatedSurfaceCol = Color(0xFF242424)
+        val MainDivider = Color(0xFF555555)
+        val SubDivider = Color(0xFF333333)
+        val FocusCol = Color(0xFF7FC7D9)
+        val AccentCol = Color(0xFF7FC7D9)
+        val ReaderPageCol = Color(0xFFF7F5EF)
+        val ReaderChoiceCol = Color(0xFFE9E6DE)
+        val ReaderText = Color(0xFF141414)
+        val ReaderMutedText = Color(0xFF606060)
+        val ReaderDivider = Color(0xFFCFCBC2)
     }
 
     object ImageSizes {

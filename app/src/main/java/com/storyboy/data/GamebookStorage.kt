@@ -27,12 +27,18 @@ class GamebookStorage(private val context: Context) {
         require(file.extension == AppConfig.GamebookExtension) {
             "StoryBoy only loads .${AppConfig.GamebookExtension} files."
         }
-        val storyJson = ZipFile(file).use { zipFile ->
+        return GamebookParser.parseMetadata(readStoryJson(file))
+    }
+
+    fun readStoryJson(file: File): String {
+        require(file.extension == AppConfig.GamebookExtension) {
+            "StoryBoy only loads .${AppConfig.GamebookExtension} files."
+        }
+        return ZipFile(file).use { zipFile ->
             val storyEntry = zipFile.getEntry("story.json")
                 ?: error("Gamebook package must contain story.json.")
             zipFile.getInputStream(storyEntry).bufferedReader().use { it.readText() }
         }
-        return GamebookParser.parseMetadata(storyJson)
     }
 
     fun extractArtwork(file: File, metadata: GamebookMetadata): GamebookArtwork {

@@ -1,26 +1,33 @@
 package com.storyboy.launcher
 
 import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -31,8 +38,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import com.storyboy.core.AppConfig
 import com.storyboy.core.UiConfig
+import com.storyboy.models.GamebookMetadata
 import com.storyboy.models.LocalGamebook
 import com.storyboy.models.StoreGamebook
 import com.storyboy.updater.UpdateStatus
@@ -44,72 +53,115 @@ fun LauncherScreen(
     updateViewModel: UpdateViewModel,
     onOpenGamebook: (LocalGamebook) -> Unit,
 ) {
-    val launcherState by launcherViewModel.state.collectAsState()
+    val state by launcherViewModel.state.collectAsState()
     val updateStatus by updateViewModel.status.collectAsState()
 
-    Column(
+    val filteredLibrary = state.library.filter { it.metadata.matches(state.searchQuery) }
+    val filteredStore = state.store.filter { it.metadata.matches(state.searchQuery) }
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(UiConfig.ThemeColors.BackgroundCol)
-            .padding(UiConfig.Spacing.ScreenPadding),
-        verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
+            .background(UiConfig.ThemeColors.BackgroundCol),
     ) {
-        LauncherHeader()
-        LauncherTabs(
-            selectedTab = launcherState.selectedTab,
-            onSelectTab = launcherViewModel::selectTab,
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(UiConfig.Spacing.ScreenPadding),
+            verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
+        ) {
+            LauncherTopBar()
+            SearchBar(
+                query = state.searchQuery,
+                onQueryChange = launcherViewModel::updateSearchQuery,
+            )
+            LauncherTabs(
+                selectedTab = state.selectedTab,
+                onSelectTab = launcherViewModel::selectTab,
+            )
 
-        launcherState.message?.let { message ->
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
+            state.message?.let { message ->
+                Text(text = message, style = MaterialTheme.typography.bodyMedium)
+            }
+
+            Box(modifier = Modifier.weight(1f)) {
+                when (state.selectedTab) {
+                    LauncherTab.Library -> LibraryShelf(
+                        isLoading = state.isLoadingLibrary,
+                        books = filteredLibrary,
+                        displayMode = state.libraryDisplayMode,
+                        onRefresh = launcherViewModel::refreshLibrary,
+                        onDisplayModeChange = launcherViewModel::selectLibraryDisplayMode,
+                        onSelect = launcherViewModel::selectLocalGamebook,
+                    )
+
+                    LauncherTab.Store -> StoreShelf(
+                        isLoading = state.isLoadingStore,
+                        books = filteredStore,
+                        onRefresh = launcherViewModel::refreshStore,
+                        onSelect = launcherViewModel::selectStoreGamebook,
+                    )
+                }
+            }
+
+            HorizontalDivider(color = UiConfig.ThemeColors.SubDivider)
+            UpdateStrip(
+                status = updateStatus,
+                onCheck = updateViewModel::checkForUpdates,
+                onDownload = updateViewModel::downloadAndInstall,
+                onInstall = updateViewModel::installPendingUpdate,
             )
         }
 
-        when (launcherState.selectedTab) {
-            LauncherTab.Library -> LibraryPage(
-                isLoading = launcherState.isLoadingLibrary,
-                books = launcherState.library,
-                displayMode = launcherState.libraryDisplayMode,
-                onRefresh = launcherViewModel::refreshLibrary,
-                onDisplayModeChange = launcherViewModel::selectLibraryDisplayMode,
-                onOpen = { gamebook ->
+        state.selectedLocalGamebook?.let { gamebook ->
+            LocalGamebookDetail(
+                gamebook = gamebook,
+                onClose = launcherViewModel::closeDetail,
+                onPlay = {
                     launcherViewModel.markStarted(gamebook)
+                    launcherViewModel.closeDetail()
                     onOpenGamebook(gamebook)
                 },
             )
-
-            LauncherTab.Store -> StorePage(
-                isLoading = launcherState.isLoadingStore,
-                books = launcherState.store,
-                onRefresh = launcherViewModel::refreshStore,
-                onDownload = launcherViewModel::download,
-            )
         }
 
-        HorizontalDivider(color = UiConfig.ThemeColors.SubDivider)
-        UpdatePanel(
-            status = updateStatus,
-            onCheck = updateViewModel::checkForUpdates,
-            onDownload = updateViewModel::downloadAndInstall,
-            onInstall = updateViewModel::installPendingUpdate,
-        )
+        state.selectedStoreGamebook?.let { gamebook ->
+            StoreGamebookDetail(
+                gamebook = gamebook,
+                onClose = launcherViewModel::closeDetail,
+                onDownload = { launcherViewModel.download(gamebook) },
+            )
+        }
     }
 }
 
 @Composable
-private fun LauncherHeader() {
-    Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap)) {
-        Text(
-            text = AppConfig.AppName,
-            style = MaterialTheme.typography.displayMedium,
-        )
-        Text(
-            text = "Library",
-            style = MaterialTheme.typography.bodyMedium,
-        )
+private fun LauncherTopBar() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column {
+            Text(text = AppConfig.AppName, style = MaterialTheme.typography.displayMedium)
+            Text(text = "Interactive library", style = MaterialTheme.typography.bodyMedium)
+        }
+        Text(text = "Offline ready", style = MaterialTheme.typography.labelLarge)
     }
+}
+
+@Composable
+private fun SearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        label = { Text("Search library and store") },
+    )
 }
 
 @Composable
@@ -119,14 +171,19 @@ private fun LauncherTabs(
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap)) {
         LauncherTab.values().forEach { tab ->
-            val isSelected = selectedTab == tab
+            val selected = selectedTab == tab
             TextButton(
                 onClick = { onSelectTab(tab) },
-                modifier = Modifier.border(
-                    width = UiConfig.Controls.FocusThickness,
-                    color = if (isSelected) UiConfig.ThemeColors.FocusCol else UiConfig.ThemeColors.SubDivider,
-                    shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
-                ),
+                modifier = Modifier
+                    .background(
+                        color = if (selected) UiConfig.ThemeColors.ElevatedSurfaceCol else UiConfig.ThemeColors.SurfaceCol,
+                        shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
+                    )
+                    .border(
+                        width = UiConfig.Controls.FocusThickness,
+                        color = if (selected) UiConfig.ThemeColors.FocusCol else UiConfig.ThemeColors.SubDivider,
+                        shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
+                    ),
             ) {
                 Text(tab.name)
             }
@@ -135,64 +192,40 @@ private fun LauncherTabs(
 }
 
 @Composable
-private fun LibraryPage(
+private fun LibraryShelf(
     isLoading: Boolean,
     books: List<LocalGamebook>,
     displayMode: LibraryDisplayMode,
     onRefresh: () -> Unit,
     onDisplayModeChange: (LibraryDisplayMode) -> Unit,
-    onOpen: (LocalGamebook) -> Unit,
+    onSelect: (LocalGamebook) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap)) {
-            Button(onClick = onRefresh) {
-                Text("Refresh")
-            }
-            LibraryDisplayMode.values().forEach { mode ->
-                TextButton(
-                    onClick = { onDisplayModeChange(mode) },
-                    modifier = Modifier.border(
-                        width = UiConfig.Controls.FocusThickness,
-                        color = if (displayMode == mode) {
-                            UiConfig.ThemeColors.FocusCol
-                        } else {
-                            UiConfig.ThemeColors.SubDivider
-                        },
-                        shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
-                    ),
-                ) {
-                    Text(mode.name)
-                }
-            }
-        }
+        ShelfControls(
+            primaryAction = "Refresh",
+            onPrimaryAction = onRefresh,
+            displayMode = displayMode,
+            onDisplayModeChange = onDisplayModeChange,
+        )
 
-        if (isLoading) {
-            ProgressText("Loading library")
-        } else if (books.isEmpty()) {
-            EmptyState("No gamebooks downloaded")
-        } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer)) {
-                items(books, key = { it.metadata.id }) { book ->
-                    LocalGamebookRow(
-                        book = book,
-                        displayMode = displayMode,
-                        onOpen = { onOpen(book) },
-                    )
-                }
-            }
+        when {
+            isLoading -> ProgressText("Loading library")
+            books.isEmpty() -> EmptyState("No gamebooks downloaded")
+            displayMode == LibraryDisplayMode.Book -> BookGrid(books = books, onSelect = onSelect)
+            else -> CartridgeList(books = books, onSelect = onSelect)
         }
     }
 }
 
 @Composable
-private fun StorePage(
+private fun StoreShelf(
     isLoading: Boolean,
     books: List<StoreGamebook>,
     onRefresh: () -> Unit,
-    onDownload: (StoreGamebook) -> Unit,
+    onSelect: (StoreGamebook) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -202,14 +235,12 @@ private fun StorePage(
             Text("Refresh store")
         }
 
-        if (isLoading) {
-            ProgressText("Loading store")
-        } else if (books.isEmpty()) {
-            EmptyState("Store shelf is empty")
-        } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer)) {
+        when {
+            isLoading -> ProgressText("Loading store")
+            books.isEmpty() -> EmptyState("No adventures available")
+            else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer)) {
                 items(books, key = { it.metadata.id }) { book ->
-                    StoreGamebookRow(book = book, onDownload = { onDownload(book) })
+                    StoreRow(book = book, onSelect = { onSelect(book) })
                 }
             }
         }
@@ -217,109 +248,238 @@ private fun StorePage(
 }
 
 @Composable
-private fun LocalGamebookRow(
-    book: LocalGamebook,
+private fun ShelfControls(
+    primaryAction: String,
+    onPrimaryAction: () -> Unit,
     displayMode: LibraryDisplayMode,
-    onOpen: () -> Unit,
-) {
-    GamebookRow(
-        title = book.metadata.title,
-        author = book.metadata.author,
-        description = book.metadata.description,
-        status = if (book.hasPlaythroughInProgress) "In progress" else "New",
-        action = "Open",
-        artworkPath = when (displayMode) {
-            LibraryDisplayMode.Book -> book.posterPath
-            LibraryDisplayMode.Cartridge -> book.bannerPath ?: book.posterPath
-        },
-        displayMode = displayMode,
-        onAction = onOpen,
-        modifier = Modifier.clickable(onClick = onOpen),
-    )
-}
-
-@Composable
-private fun StoreGamebookRow(
-    book: StoreGamebook,
-    onDownload: () -> Unit,
-) {
-    GamebookRow(
-        title = book.metadata.title,
-        author = book.metadata.author,
-        description = book.metadata.description,
-        status = if (book.isDownloaded) "Downloaded" else "Available",
-        action = if (book.isDownloaded) "Saved" else "Download",
-        artworkPath = null,
-        displayMode = LibraryDisplayMode.Book,
-        onAction = onDownload,
-    )
-}
-
-@Composable
-private fun GamebookRow(
-    title: String,
-    author: String,
-    description: String,
-    status: String,
-    action: String,
-    artworkPath: String?,
-    displayMode: LibraryDisplayMode,
-    onAction: () -> Unit,
-    modifier: Modifier = Modifier,
+    onDisplayModeChange: (LibraryDisplayMode) -> Unit,
 ) {
     Row(
-        modifier = modifier
+        horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Button(onClick = onPrimaryAction) {
+            Text(primaryAction)
+        }
+        LibraryDisplayMode.values().forEach { mode ->
+            val selected = mode == displayMode
+            TextButton(
+                onClick = { onDisplayModeChange(mode) },
+                modifier = Modifier.border(
+                    width = UiConfig.Controls.FocusThickness,
+                    color = if (selected) UiConfig.ThemeColors.FocusCol else UiConfig.ThemeColors.SubDivider,
+                    shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
+                ),
+            ) {
+                Text(mode.name)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BookGrid(
+    books: List<LocalGamebook>,
+    onSelect: (LocalGamebook) -> Unit,
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(UiConfig.ImageSizes.GamePosterGridWidth),
+        horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.GridBuffer),
+        verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.GridBuffer),
+    ) {
+        items(books, key = { it.metadata.id }) { book ->
+            BookTile(book = book, onSelect = { onSelect(book) })
+        }
+    }
+}
+
+@Composable
+private fun BookTile(
+    book: LocalGamebook,
+    onSelect: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.clickable(onClick = onSelect),
+        verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
+    ) {
+        ArtworkFrame(
+            artworkPath = book.posterPath,
+            displayMode = LibraryDisplayMode.Book,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            text = book.metadata.title,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = if (book.hasPlaythroughInProgress) "In progress" else "New",
+            style = MaterialTheme.typography.labelLarge,
+        )
+    }
+}
+
+@Composable
+private fun CartridgeList(
+    books: List<LocalGamebook>,
+    onSelect: (LocalGamebook) -> Unit,
+) {
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer)) {
+        items(books, key = { it.metadata.id }) { book ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSelect(book) }
+                    .background(UiConfig.ThemeColors.SurfaceCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
+                    .padding(UiConfig.Spacing.ListBuffer),
+                horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ArtworkFrame(
+                    artworkPath = book.bannerPath ?: book.posterPath,
+                    displayMode = LibraryDisplayMode.Cartridge,
+                )
+                BookSummary(metadata = book.metadata, status = if (book.hasPlaythroughInProgress) "In progress" else "New")
+            }
+        }
+    }
+}
+
+@Composable
+private fun StoreRow(
+    book: StoreGamebook,
+    onSelect: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onSelect)
             .background(UiConfig.ThemeColors.SurfaceCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
-            .border(
-                width = UiConfig.Controls.FocusThickness,
-                color = UiConfig.ThemeColors.SubDivider,
-                shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
-            )
             .padding(UiConfig.Spacing.ListBuffer),
         horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        GamebookArtwork(
-            artworkPath = artworkPath,
-            displayMode = displayMode,
+        ArtworkFrame(artworkPath = null, displayMode = LibraryDisplayMode.Book)
+        BookSummary(metadata = book.metadata, status = if (book.isDownloaded) "Downloaded" else "Available")
+    }
+}
+
+@Composable
+private fun BookSummary(
+    metadata: GamebookMetadata,
+    status: String,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
+    ) {
+        Text(text = metadata.title, style = MaterialTheme.typography.headlineMedium)
+        Text(text = "${metadata.author} • ${metadata.genre}", style = MaterialTheme.typography.bodyMedium)
+        Text(text = metadata.description, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(text = status, style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+@Composable
+private fun LocalGamebookDetail(
+    gamebook: LocalGamebook,
+    onClose: () -> Unit,
+    onPlay: () -> Unit,
+) {
+    DetailPanel(onClose = onClose) {
+        ArtworkFrame(
+            artworkPath = gamebook.posterPath,
+            displayMode = LibraryDisplayMode.Book,
+            modifier = Modifier.width(UiConfig.ImageSizes.GamePosterGridWidth),
         )
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
-        ) {
-            Text(text = title, style = MaterialTheme.typography.headlineMedium)
-            Text(text = author, style = MaterialTheme.typography.bodyMedium)
-            Text(text = description, style = MaterialTheme.typography.bodyMedium)
-            Text(text = status, style = MaterialTheme.typography.labelLarge)
-        }
-        Button(onClick = onAction) {
-            Text(action)
+        DetailCopy(metadata = gamebook.metadata)
+        Button(onClick = onPlay, modifier = Modifier.fillMaxWidth()) {
+            Text(if (gamebook.hasPlaythroughInProgress) "Resume" else "Play")
         }
     }
 }
 
 @Composable
-private fun GamebookArtwork(
+private fun StoreGamebookDetail(
+    gamebook: StoreGamebook,
+    onClose: () -> Unit,
+    onDownload: () -> Unit,
+) {
+    DetailPanel(onClose = onClose) {
+        ArtworkFrame(
+            artworkPath = null,
+            displayMode = LibraryDisplayMode.Book,
+            modifier = Modifier.width(UiConfig.ImageSizes.GamePosterGridWidth),
+        )
+        DetailCopy(metadata = gamebook.metadata)
+        Button(
+            onClick = onDownload,
+            enabled = !gamebook.isDownloaded,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(if (gamebook.isDownloaded) "Downloaded" else "Download for offline play")
+        }
+    }
+}
+
+@Composable
+private fun DetailPanel(
+    onClose: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(UiConfig.ThemeColors.BackgroundCol),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(UiConfig.Spacing.ScreenPadding)
+                .background(UiConfig.ThemeColors.ElevatedSurfaceCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
+                .padding(UiConfig.Spacing.SectionGap),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
+        ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = onClose) {
+                    Text("Close")
+                }
+            }
+            content()
+        }
+    }
+}
+
+@Composable
+private fun DetailCopy(metadata: GamebookMetadata) {
+    Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap)) {
+        Text(text = metadata.title, style = MaterialTheme.typography.displayMedium)
+        Text(text = "${metadata.author} • ${metadata.genre} • ${metadata.version}", style = MaterialTheme.typography.labelLarge)
+        Text(text = metadata.description, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
+private fun ArtworkFrame(
     artworkPath: String?,
     displayMode: LibraryDisplayMode,
+    modifier: Modifier = Modifier,
 ) {
     val bitmap = remember(artworkPath) {
         artworkPath?.let(BitmapFactory::decodeFile)
     }
-    val width = when (displayMode) {
-        LibraryDisplayMode.Book -> UiConfig.ImageSizes.GamePosterListWidth
-        LibraryDisplayMode.Cartridge -> UiConfig.ImageSizes.GameBannerListWidth
-    }
-    val height = when (displayMode) {
-        LibraryDisplayMode.Book -> UiConfig.ImageSizes.GamePosterListHeight
-        LibraryDisplayMode.Cartridge -> UiConfig.ImageSizes.GameBannerListHeight
+    val frameModifier = when (displayMode) {
+        LibraryDisplayMode.Book -> modifier.aspectRatio(0.69f)
+        LibraryDisplayMode.Cartridge -> modifier
+            .width(UiConfig.ImageSizes.GameBannerListWidth)
+            .height(UiConfig.ImageSizes.GameBannerListHeight)
     }
 
     Box(
-        modifier = Modifier
-            .width(width)
-            .height(height)
+        modifier = frameModifier
             .background(UiConfig.ThemeColors.BackgroundCol, RoundedCornerShape(UiConfig.Controls.PosterCornerRadius))
             .border(
                 width = UiConfig.Controls.FocusThickness,
@@ -329,10 +489,7 @@ private fun GamebookArtwork(
         contentAlignment = Alignment.Center,
     ) {
         if (bitmap == null) {
-            Text(
-                text = AppConfig.GamebookExtension,
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            Text(text = AppConfig.GamebookExtension, style = MaterialTheme.typography.bodyMedium)
         } else {
             Image(
                 bitmap = bitmap.asImageBitmap(),
@@ -346,59 +503,39 @@ private fun GamebookArtwork(
 
 @Composable
 private fun EmptyState(text: String) {
-    Box(
-        modifier = Modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center,
-    ) {
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Text(text = text, style = MaterialTheme.typography.bodyLarge)
     }
 }
 
 @Composable
-private fun UpdatePanel(
+private fun UpdateStrip(
     status: UpdateStatus,
     onCheck: () -> Unit,
     onDownload: () -> Unit,
     onInstall: () -> Unit,
 ) {
     when (status) {
-        UpdateStatus.Idle -> Button(onClick = onCheck) {
+        UpdateStatus.Idle -> TextButton(onClick = onCheck) {
             Text("Check for app updates")
         }
 
-        UpdateStatus.Checking -> ProgressText("Checking for app updates")
-        UpdateStatus.Downloading -> ProgressText("Downloading app update")
-        UpdateStatus.UpToDate -> Text(
-            text = "StoryBoy is up to date",
-            style = MaterialTheme.typography.bodyMedium,
-        )
-
+        UpdateStatus.Checking -> Text(text = "Checking for app updates", style = MaterialTheme.typography.bodyMedium)
+        UpdateStatus.Downloading -> Text(text = "Downloading app update", style = MaterialTheme.typography.bodyMedium)
+        UpdateStatus.UpToDate -> Text(text = "StoryBoy is up to date", style = MaterialTheme.typography.bodyMedium)
         UpdateStatus.ReadyToInstall -> Button(onClick = onInstall) {
             Text("Install app update")
         }
 
-        is UpdateStatus.Available -> Column(
-            verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
+        is UpdateStatus.Available -> Button(
+            onClick = onDownload,
+            colors = ButtonDefaults.buttonColors(containerColor = UiConfig.ThemeColors.AccentCol),
         ) {
-            Text(
-                text = "Version ${status.manifest.versionName} available",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Button(onClick = onDownload) {
-                Text("Download app update")
-            }
+            Text("Install StoryBoy ${status.manifest.versionName}")
         }
 
-        is UpdateStatus.Failed -> Column(
-            verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
-        ) {
-            Text(
-                text = status.message,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Button(onClick = onCheck) {
-                Text("Try again")
-            }
+        is UpdateStatus.Failed -> TextButton(onClick = onCheck) {
+            Text("Update check failed")
         }
     }
 }
@@ -406,13 +543,20 @@ private fun UpdatePanel(
 @Composable
 private fun ProgressText(text: String) {
     Column(
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         CircularProgressIndicator()
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium,
-        )
+        Text(text = text, style = MaterialTheme.typography.bodyMedium)
     }
+}
+
+private fun GamebookMetadata.matches(query: String): Boolean {
+    if (query.isBlank()) return true
+    val normalized = query.trim()
+    return title.contains(normalized, ignoreCase = true) ||
+        author.contains(normalized, ignoreCase = true) ||
+        genre.contains(normalized, ignoreCase = true) ||
+        description.contains(normalized, ignoreCase = true)
 }
