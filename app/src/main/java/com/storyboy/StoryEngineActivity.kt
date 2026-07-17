@@ -20,12 +20,16 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.storyboy.core.Navigation
@@ -56,6 +60,7 @@ class StoryEngineActivity : ComponentActivity() {
                     onBack = ::finish,
                     onRestart = viewModel::restart,
                     onChoice = viewModel::choose,
+                    onPuzzleAnswer = viewModel::submitPuzzleAnswer,
                 )
             }
         }
@@ -68,6 +73,7 @@ private fun StoryReaderScreen(
     onBack: () -> Unit,
     onRestart: () -> Unit,
     onChoice: (StoryChoice) -> Unit,
+    onPuzzleAnswer: (String) -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -83,6 +89,7 @@ private fun StoryReaderScreen(
                 onBack = onBack,
                 onRestart = onRestart,
                 onChoice = onChoice,
+                onPuzzleAnswer = onPuzzleAnswer,
             )
         }
     }
@@ -94,6 +101,7 @@ private fun ReaderContent(
     onBack: () -> Unit,
     onRestart: () -> Unit,
     onChoice: (StoryChoice) -> Unit,
+    onPuzzleAnswer: (String) -> Unit,
 ) {
     val gamebook = state.gamebook ?: return
     val node = state.currentNode ?: return
@@ -124,7 +132,13 @@ private fun ReaderContent(
                 ),
             )
 
-            if (node.choices.isEmpty()) {
+            if (node.type == "puzzle") {
+                PuzzleInput(
+                    nodeId = node.id,
+                    question = node.text,
+                    onSubmit = onPuzzleAnswer,
+                )
+            } else if (node.choices.isEmpty()) {
                 Text(
                     text = "The End",
                     style = MaterialTheme.typography.headlineMedium.copy(color = UiConfig.ThemeColors.ReaderText),
@@ -136,6 +150,40 @@ private fun ReaderContent(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PuzzleInput(
+    nodeId: String,
+    question: String,
+    onSubmit: (String) -> Unit,
+) {
+    var answer by remember(nodeId) { mutableStateOf("") }
+
+    Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer)) {
+        Text(
+            text = question,
+            style = MaterialTheme.typography.headlineMedium.copy(color = UiConfig.ThemeColors.ReaderText),
+        )
+        OutlinedTextField(
+            value = answer,
+            onValueChange = { answer = it },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            label = { Text("Answer") },
+        )
+        Button(
+            onClick = { onSubmit(answer) },
+            enabled = answer.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = UiConfig.ThemeColors.ReaderChoiceCol,
+                contentColor = UiConfig.ThemeColors.ReaderText,
+            ),
+        ) {
+            Text("Submit")
         }
     }
 }

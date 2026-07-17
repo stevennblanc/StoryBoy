@@ -48,6 +48,19 @@ class StoryEngineViewModel(application: Application) : AndroidViewModel(applicat
         mutableState.update { it.copy(currentNode = targetNode) }
     }
 
+    fun submitPuzzleAnswer(answer: String) {
+        val gamebook = mutableState.value.gamebook ?: return
+        val node = mutableState.value.currentNode ?: return
+        val targetNodeId = if (answer.normalizeAnswer() in node.acceptedAnswers) {
+            node.correctTargetNodeId
+        } else {
+            node.incorrectTargetNodeId
+        } ?: return
+        val targetNode = runCatching { gamebook.node(targetNodeId) }.getOrElse { return }
+        repository.saveCurrentNode(gamebook.metadata.id, targetNode.id)
+        mutableState.update { it.copy(currentNode = targetNode) }
+    }
+
     fun restart() {
         val gamebook = mutableState.value.gamebook ?: return
         repository.reset(gamebook.metadata.id)
