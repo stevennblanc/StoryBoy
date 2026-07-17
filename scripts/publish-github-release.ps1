@@ -11,12 +11,12 @@ param(
 $ErrorActionPreference = "Stop"
 
 $authStatus = gh auth status 2>&1 | Out-String
-if ($authStatus -notmatch "account $Owner") {
+if ($authStatus -notmatch "Logged in to github.com account $Owner") {
     throw "GitHub CLI is not authenticated as $Owner. Refusing to publish."
 }
 
-if ($authStatus -match "langetrinidadwebtools" -and $authStatus -match "Active account:\s+true") {
-    throw "langetrinidadwebtools appears to be active. Refusing to publish."
+if ($authStatus -notmatch "Logged in to github.com account $Owner[\s\S]*?Active account:\s+true") {
+    throw "$Owner is not the active GitHub CLI account. Refusing to publish."
 }
 
 if (-not (Test-Path $ApkPath)) {
@@ -27,8 +27,13 @@ if (-not (Test-Path $ManifestPath)) {
     throw "Update manifest not found at $ManifestPath."
 }
 
-$releaseExists = gh release view $Tag --repo "$Owner/$Repo" 2>$null
-if ($LASTEXITCODE -ne 0) {
+$previousErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+gh release view $Tag --repo "$Owner/$Repo" *> $null
+$releaseViewExitCode = $LASTEXITCODE
+$ErrorActionPreference = $previousErrorActionPreference
+
+if ($releaseViewExitCode -ne 0) {
     gh release create $Tag --repo "$Owner/$Repo" --title $Tag --notes "StoryBoy Android build $Tag"
 }
 
