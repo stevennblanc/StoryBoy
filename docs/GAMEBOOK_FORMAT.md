@@ -199,6 +199,40 @@ Use map nodes for travel or investigation hubs.
 
 Every map location target must exist.
 
+## Battle Nodes
+
+Use battle nodes for dice-based conflict or chance checks.
+
+```json
+{
+  "id": "warehouse_fight",
+  "type": "battle",
+  "text": "Hart's guard lunged from behind the stacked crates.",
+  "player_dice": "1d6",
+  "opponent_dice": "1d6",
+  "player_bonus": 0,
+  "opponent_bonus": 1,
+  "win_target": "guard_defeated",
+  "lose_target": "guard_overpowers_you",
+  "draw_target": "fight_stalemate",
+  "item_modifiers": [
+    {
+      "item": "brass_knuckles",
+      "bonus": 2,
+      "description": "Brass Knuckles"
+    }
+  ]
+}
+```
+
+Rules:
+
+- dice expressions use `XdY`, such as `1d6`, `2d6`, or `1d8`
+- `win_target` and `lose_target` are required
+- `draw_target` is optional; draws use `win_target` when omitted
+- `item_modifiers` only apply when the player has the matching inventory item
+- every battle target must exist
+
 Nodes may also grant inline evidence objects:
 
 ```json

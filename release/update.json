@@ -1,6 +1,6 @@
 {
-  "versionCode": 9,
-  "versionName": "0.9.0",
+  "versionCode": 10,
+  "versionName": "0.10.0",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "Adds inventory, evidence, and map runtime node types."
+  "releaseNotes": "Adds flexible dice-based battle nodes with inventory preparation modifiers."
 }

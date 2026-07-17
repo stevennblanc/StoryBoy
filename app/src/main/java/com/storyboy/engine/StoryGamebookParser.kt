@@ -74,6 +74,10 @@ object StoryGamebookParser {
             return parseMapNode(nodeJson, nodeId, type)
         }
 
+        if (type == "battle") {
+            return parseBattleNode(nodeJson, nodeId, type)
+        }
+
         val choicesJson = nodeJson.optJSONArray("choices")
         val choices = parseChoices(choicesJson)
 
@@ -193,6 +197,51 @@ object StoryGamebookParser {
             evidenceGained = parseEvidenceGained(nodeJson),
             inventoryGained = parseInventoryGained(nodeJson),
             mapLocations = parseMapLocations(nodeJson.optJSONArray("locations")),
+        )
+    }
+
+    private fun parseBattleNode(
+        nodeJson: JSONObject,
+        nodeId: String,
+        type: String,
+    ): StoryNode {
+        val battleJson = nodeJson.optJSONObject("battle") ?: nodeJson
+        val winTarget = battleJson.optAnyString("win_target", "on_win", "success_target")
+        val loseTarget = battleJson.optAnyString("lose_target", "on_lose", "failure_target")
+        val drawTarget = battleJson.optAnyString("draw_target", "tie_target", "on_draw").ifBlank { null }
+        val playerDice = battleJson.optAnyString("player_dice", "playerDice").ifBlank { "1d6" }
+        val opponentDice = battleJson.optAnyString("opponent_dice", "opponentDice", "enemy_dice", "enemyDice").ifBlank { "1d6" }
+
+        validateDiceExpression(playerDice, nodeId)
+        validateDiceExpression(opponentDice, nodeId)
+
+        return StoryNode(
+            id = nodeId,
+            type = type,
+            text = nodeJson.optString("text", nodeJson.optString("title", "Roll for the outcome.")),
+            images = parseImages(nodeJson),
+            choices = emptyList(),
+            evidenceGained = parseEvidenceGained(nodeJson),
+            inventoryGained = parseInventoryGained(nodeJson),
+            battle = BattleConfig(
+                playerDice = playerDice,
+                opponentDice = opponentDice,
+                playerBonus = battleJson.optAnyInt("player_bonus", "playerBonus", default = 0),
+                opponentBonus = battleJson.optAnyInt(
+                    "opponent_bonus",
+                    "opponentBonus",
+                    "enemy_bonus",
+                    "enemyBonus",
+                    default = 0,
+                ),
+                winTargetNodeId = winTarget,
+                loseTargetNodeId = loseTarget,
+                drawTargetNodeId = drawTarget,
+                itemModifiers = parseBattleModifiers(
+                    battleJson.optJSONArray("item_modifiers")
+                        ?: battleJson.optJSONArray("inventory_modifiers"),
+                ),
+            ),
         )
     }
 
@@ -336,8 +385,66 @@ object StoryGamebookParser {
                     "Map node ${node.id} points to missing location target ${location.targetNodeId}."
                 }
             }
+            node.battle?.let { battle ->
+                require(containsKey(battle.winTargetNodeId)) {
+                    "Battle ${node.id} points to missing win target ${battle.winTargetNodeId}."
+                }
+                require(containsKey(battle.loseTargetNodeId)) {
+                    "Battle ${node.id} points to missing lose target ${battle.loseTargetNodeId}."
+                }
+                battle.drawTargetNodeId?.let { target ->
+                    require(containsKey(target)) { "Battle ${node.id} points to missing draw target $target." }
+                }
+            }
         }
     }
+}
+
+private fun parseBattleModifiers(modifiersJson: JSONArray?): List<BattleModifier> {
+    return buildList {
+        if (modifiersJson != null) {
+            for (index in 0 until modifiersJson.length()) {
+                val modifierJson = modifiersJson.getJSONObject(index)
+                val itemId = modifierJson.optAnyString("item", "item_id", "inventory_id", "requires_item", "id")
+                add(
+                    BattleModifier(
+                        itemId = itemId,
+                        bonus = modifierJson.optAnyInt("bonus", "player_bonus", default = 0),
+                        description = modifierJson.optString("description", itemId.toDisplayTitle()),
+                    ),
+                )
+            }
+        }
+    }
+}
+
+private fun validateDiceExpression(expression: String, nodeId: String) {
+    val match = DiceExpressionRegex.matchEntire(expression.trim())
+    require(match != null) {
+        "Battle $nodeId uses invalid dice expression $expression. Use forms like 1d6 or 2d8."
+    }
+    val diceCount = match.groupValues[1].ifBlank { "1" }.toInt()
+    val sides = match.groupValues[2].toInt()
+    require(diceCount in 1..20 && sides in 2..100) {
+        "Battle $nodeId uses unsupported dice expression $expression."
+    }
+}
+
+private val DiceExpressionRegex = Regex("""(\d*)d(\d+)""", RegexOption.IGNORE_CASE)
+
+private fun JSONObject.optAnyString(vararg names: String): String {
+    names.forEach { name ->
+        val value = optString(name)
+        if (value.isNotBlank()) return value
+    }
+    return ""
+}
+
+private fun JSONObject.optAnyInt(vararg names: String, default: Int): Int {
+    names.forEach { name ->
+        if (has(name)) return optInt(name, default)
+    }
+    return default
 }
 
 private fun JSONArray.getEvidenceItem(index: Int): EvidenceItem {

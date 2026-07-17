@@ -39,6 +39,9 @@ import androidx.compose.ui.layout.ContentScale
 import com.storyboy.core.Navigation
 import com.storyboy.core.ThemeManager
 import com.storyboy.core.UiConfig
+import com.storyboy.engine.BattleConfig
+import com.storyboy.engine.BattleOutcome
+import com.storyboy.engine.BattleResult
 import com.storyboy.engine.EvidenceItem
 import com.storyboy.engine.InventoryItem
 import com.storyboy.engine.MapLocation
@@ -69,6 +72,7 @@ class StoryEngineActivity : ComponentActivity() {
                     onRestart = viewModel::restart,
                     onChoice = viewModel::choose,
                     onPuzzleAnswer = viewModel::submitPuzzleAnswer,
+                    onBattleRoll = viewModel::rollBattle,
                 )
             }
         }
@@ -82,6 +86,7 @@ private fun StoryReaderScreen(
     onRestart: () -> Unit,
     onChoice: (StoryChoice) -> Unit,
     onPuzzleAnswer: (String) -> Unit,
+    onBattleRoll: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -98,6 +103,7 @@ private fun StoryReaderScreen(
                 onRestart = onRestart,
                 onChoice = onChoice,
                 onPuzzleAnswer = onPuzzleAnswer,
+                onBattleRoll = onBattleRoll,
             )
         }
     }
@@ -110,6 +116,7 @@ private fun ReaderContent(
     onRestart: () -> Unit,
     onChoice: (StoryChoice) -> Unit,
     onPuzzleAnswer: (String) -> Unit,
+    onBattleRoll: () -> Unit,
 ) {
     val gamebook = state.gamebook ?: return
     val node = state.currentNode ?: return
@@ -169,6 +176,14 @@ private fun ReaderContent(
                     locations = node.mapLocations,
                     onChoice = onChoice,
                 )
+            } else if (node.type == "battle" && node.battle != null) {
+                BattlePanel(
+                    battle = node.battle,
+                    inventory = state.collectedInventory,
+                    result = state.currentBattleResult,
+                    onRoll = onBattleRoll,
+                    onChoice = onChoice,
+                )
             } else if (node.choices.isEmpty()) {
                 Text(
                     text = "The End",
@@ -212,6 +227,109 @@ private fun StoryInlineImage(image: StoryImage) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun BattlePanel(
+    battle: BattleConfig,
+    inventory: List<InventoryItem>,
+    result: BattleResult?,
+    onRoll: () -> Unit,
+    onChoice: (StoryChoice) -> Unit,
+) {
+    val inventoryIds = inventory.map { it.id }.toSet()
+
+    Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer)) {
+        ReaderCollectionPanel(title = "Battle") {
+            BattleLine(label = "Your roll", value = battle.playerDice.withBonus(battle.playerBonus))
+            BattleLine(label = "Opponent", value = battle.opponentDice.withBonus(battle.opponentBonus))
+            battle.itemModifiers.forEach { modifier ->
+                val isActive = modifier.itemId in inventoryIds
+                BattleLine(
+                    label = if (isActive) "Prepared" else "Missing item",
+                    value = "${modifier.description} (${modifier.bonus.signedBonus()})",
+                )
+            }
+        }
+
+        if (result == null) {
+            Button(
+                onClick = onRoll,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = UiConfig.ThemeColors.ReaderChoiceCol,
+                    contentColor = UiConfig.ThemeColors.ReaderText,
+                ),
+            ) {
+                Text("Roll")
+            }
+        } else {
+            BattleResultPanel(result = result)
+            ChoiceButton(
+                choice = StoryChoice(
+                    text = "Continue",
+                    targetNodeId = result.targetNodeId,
+                ),
+                onChoice = onChoice,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BattleLine(
+    label: String,
+    value: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium.copy(color = UiConfig.ThemeColors.ReaderMutedText),
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium.copy(color = UiConfig.ThemeColors.ReaderText),
+        )
+    }
+}
+
+@Composable
+private fun BattleResultPanel(result: BattleResult) {
+    ReaderCollectionPanel(title = result.outcome.displayLabel()) {
+        CollectionItem(
+            title = "You: ${result.playerRoll.rolls.joinToString(" + ")} ${result.playerRoll.bonus.signedBonus()}",
+            description = "Total ${result.playerRoll.total}",
+        )
+        CollectionItem(
+            title = "Opponent: ${result.opponentRoll.rolls.joinToString(" + ")} ${result.opponentRoll.bonus.signedBonus()}",
+            description = "Total ${result.opponentRoll.total}",
+        )
+        if (result.appliedModifiers.isNotEmpty()) {
+            CollectionItem(
+                title = "Preparation helped",
+                description = result.appliedModifiers.joinToString { it.description },
+            )
+        }
+    }
+}
+
+private fun String.withBonus(bonus: Int): String {
+    return if (bonus == 0) this else "$this ${bonus.signedBonus()}"
+}
+
+private fun Int.signedBonus(): String {
+    return if (this >= 0) "+$this" else toString()
+}
+
+private fun BattleOutcome.displayLabel(): String {
+    return when (this) {
+        BattleOutcome.Win -> "Success"
+        BattleOutcome.Lose -> "Setback"
+        BattleOutcome.Draw -> "Draw"
     }
 }
 

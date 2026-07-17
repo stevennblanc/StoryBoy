@@ -9,6 +9,7 @@ data class StoryNode(
     val evidenceGained: List<EvidenceItem> = emptyList(),
     val inventoryGained: List<InventoryItem> = emptyList(),
     val mapLocations: List<MapLocation> = emptyList(),
+    val battle: BattleConfig? = null,
     val acceptedAnswers: List<String> = emptyList(),
     val correctTargetNodeId: String? = null,
     val incorrectTargetNodeId: String? = null,

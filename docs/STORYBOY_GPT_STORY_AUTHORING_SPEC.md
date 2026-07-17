@@ -215,6 +215,85 @@ Use map nodes for travel, location selection, and open investigation hubs.
 
 Every `locations[].target` must point to an existing node.
 
+### 7. Battle Node
+
+Use battle nodes for simple dice-based conflict, danger, contests, chase pressure, or tactical scenes where preparation can improve the player's odds.
+
+Battle nodes compare a player roll against an opponent roll.
+
+Supported dice format:
+
+- `1d6`
+- `2d6`
+- `1d8`
+- `d6` is also accepted and means `1d6`
+
+```json
+{
+  "id": "warehouse_fight",
+  "type": "battle",
+  "text": "Hart's guard lunged from behind the stacked crates.",
+  "player_dice": "1d6",
+  "opponent_dice": "1d6",
+  "player_bonus": 0,
+  "opponent_bonus": 1,
+  "win_target": "guard_defeated",
+  "lose_target": "guard_overpowers_you",
+  "draw_target": "fight_stalemate",
+  "item_modifiers": [
+    {
+      "item": "brass_knuckles",
+      "bonus": 2,
+      "description": "Brass Knuckles"
+    },
+    {
+      "item": "police_badge",
+      "bonus": 1,
+      "description": "The badge makes him hesitate"
+    }
+  ]
+}
+```
+
+Required fields:
+
+- `win_target`
+- `lose_target`
+
+Optional fields:
+
+- `draw_target`; if omitted, draws use `win_target`
+- `player_dice`; defaults to `1d6`
+- `opponent_dice`; defaults to `1d6`
+- `player_bonus`; defaults to `0`
+- `opponent_bonus`; defaults to `0`
+- `item_modifiers`; applies bonuses only when the player has the matching inventory item
+
+Battle nodes can also use a nested object if that is clearer:
+
+```json
+{
+  "id": "lockpick_under_pressure",
+  "type": "battle",
+  "text": "The lock resisted while footsteps crossed the hall.",
+  "battle": {
+    "player_dice": "2d6",
+    "opponent_dice": "1d8",
+    "win_target": "door_opened",
+    "lose_target": "caught_at_door",
+    "item_modifiers": [
+      {
+        "item_id": "lockpick_set",
+        "bonus": 3,
+        "description": "Lockpick Set"
+      }
+    ]
+  }
+}
+```
+
+Every battle target must point to an existing node. Every `item_modifiers[].item` or `item_id` should match an inventory item id.
+
 ## Evidence System
 
 Evidence is optional but recommended for detective stories.
@@ -434,6 +513,14 @@ Use `type: "map"` for:
 - Investigation hubs
 - Open location selection
 
+Use `type: "battle"` for:
+
+- Fights
+- Escapes
+- Physical risks
+- Skill checks with a chance element
+- Scenes where inventory preparation should improve the odds
+
 ## Recommended Detective Structure
 
 For a detective gamebook, use this flow style:
@@ -466,6 +553,10 @@ Before packaging:
 - Every `puzzle.correct_target` exists
 - Every `puzzle.incorrect_target` exists
 - Every `map.locations[].target` exists
+- Every `battle.win_target` exists
+- Every `battle.lose_target` exists
+- Every optional `battle.draw_target` exists
+- Every battle dice expression uses `XdY`, such as `1d6` or `2d8`
 - Every evidence id is stable and lowercase snake_case
 - Every inventory id is stable and lowercase snake_case
 - Every node image path exists inside the `.gbk`

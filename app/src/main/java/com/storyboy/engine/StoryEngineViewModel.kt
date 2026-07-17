@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.random.Random
 
 class StoryEngineViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = StorySessionRepository(application)
@@ -56,6 +57,44 @@ class StoryEngineViewModel(application: Application) : AndroidViewModel(applicat
         enterNode(gamebook = gamebook, node = targetNode)
     }
 
+    fun rollBattle() {
+        val node = mutableState.value.currentNode ?: return
+        val battle = node.battle ?: return
+        val inventoryIds = mutableState.value.collectedInventory.map { it.id }.toSet()
+        val appliedModifiers = battle.itemModifiers.filter { it.itemId in inventoryIds }
+        val itemBonus = appliedModifiers.sumOf { it.bonus }
+        val playerRoll = rollDice(
+            expression = battle.playerDice,
+            bonus = battle.playerBonus + itemBonus,
+        )
+        val opponentRoll = rollDice(
+            expression = battle.opponentDice,
+            bonus = battle.opponentBonus,
+        )
+        val outcome = when {
+            playerRoll.total > opponentRoll.total -> BattleOutcome.Win
+            playerRoll.total < opponentRoll.total -> BattleOutcome.Lose
+            else -> BattleOutcome.Draw
+        }
+        val targetNodeId = when (outcome) {
+            BattleOutcome.Win -> battle.winTargetNodeId
+            BattleOutcome.Lose -> battle.loseTargetNodeId
+            BattleOutcome.Draw -> battle.drawTargetNodeId ?: battle.winTargetNodeId
+        }
+
+        mutableState.update { state ->
+            state.copy(
+                currentBattleResult = BattleResult(
+                    playerRoll = playerRoll,
+                    opponentRoll = opponentRoll,
+                    appliedModifiers = appliedModifiers,
+                    outcome = outcome,
+                    targetNodeId = targetNodeId,
+                ),
+            )
+        }
+    }
+
     fun restart() {
         val gamebook = mutableState.value.gamebook ?: return
         repository.reset(gamebook.metadata.id)
@@ -85,6 +124,25 @@ class StoryEngineViewModel(application: Application) : AndroidViewModel(applicat
             },
             collectedEvidence = collectedIds.mapNotNull { gamebook.evidenceCatalog[it] },
             collectedInventory = inventoryIds.mapNotNull { gamebook.inventoryCatalog[it] },
+            currentBattleResult = null,
         )
+    }
+
+    private fun rollDice(expression: String, bonus: Int): BattleRoll {
+        val match = DiceExpressionRegex.matchEntire(expression.trim())
+            ?: return BattleRoll(expression = expression, rolls = emptyList(), bonus = bonus, total = bonus)
+        val diceCount = match.groupValues[1].ifBlank { "1" }.toInt()
+        val sides = match.groupValues[2].toInt()
+        val rolls = List(diceCount) { Random.nextInt(from = 1, until = sides + 1) }
+        return BattleRoll(
+            expression = expression,
+            rolls = rolls,
+            bonus = bonus,
+            total = rolls.sum() + bonus,
+        )
+    }
+
+    companion object {
+        private val DiceExpressionRegex = Regex("""(\d*)d(\d+)""", RegexOption.IGNORE_CASE)
     }
 }

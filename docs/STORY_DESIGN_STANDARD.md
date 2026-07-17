@@ -14,7 +14,7 @@ Runtime node types are the small set of structures the engine must execute. Stor
 | `inventory` | Grants one or more items and optionally returns to a node | Implemented |
 | `evidence` | Grants one or more evidence items and optionally returns to a node | Implemented |
 | `map` | Presents travel or investigation location choices | Implemented |
-| `battle` | Physical or tactical conflict | Drafted |
+| `battle` | Dice-based physical, tactical, or pressure conflict | Implemented |
 
 Inventory, stats, evidence, triggers, and flags should usually be properties or systems attached to nodes rather than separate runtime node classes.
 
@@ -54,3 +54,19 @@ Example uses:
 - ask the player which evidence proves an accusation
 
 Genres that do not need evidence can ignore the system entirely.
+
+## Battle System
+
+Battle nodes are a lightweight dice system for games that want risk without requiring a full RPG rules engine.
+
+The engine compares a player roll against an opponent roll. Inventory can add preparation bonuses, so a player who found useful gear has better odds without forcing every story to use character stats.
+
+Good uses:
+
+- a short fight
+- forcing a door under pressure
+- escaping pursuit
+- surviving a hazard
+- resolving a risky tactic
+
+Books that do not need chance-based scenes can ignore battle nodes entirely.
