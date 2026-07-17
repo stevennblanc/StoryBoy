@@ -8,6 +8,8 @@ A `.gbk` file is a ZIP package with a validated `story.json` file inside. It may
 
 `banner.png` is the standard horizontal image for cartridge-style library display.
 
+Additional story images may be packaged and referenced by nodes. These are useful for maps, clue drawings, diagrams, letters, and other meaningful visuals.
+
 The Android app stores downloaded gamebooks in its app-specific internal storage:
 
 `context.filesDir/gamebooks`
@@ -23,6 +25,8 @@ first-adventure.gbk
   story.json
   poster.png
   banner.png
+  images/
+    map.png
 ```
 
 ## Minimum `story.json`
@@ -49,6 +53,8 @@ first-adventure.gbk
     {
       "id": "start",
       "type": "lore",
+      "image": "images/map.png",
+      "image_caption": "A hand-drawn map.",
       "text": "The story begins.",
       "evidence": ["torn_photograph"],
       "choices": []
@@ -95,6 +101,48 @@ Evidence is optional. A book may define a top-level `evidence` catalog and grant
   ]
 }
 ```
+
+## Node Images
+
+Nodes may reference a single image:
+
+```json
+{
+  "id": "view_map",
+  "type": "text",
+  "image": "images/city_map.png",
+  "image_caption": "The south docks and Marlowe Square.",
+  "text": "The map had three locations circled.",
+  "choices": [
+    {
+      "text": "Continue",
+      "target": "office_hub"
+    }
+  ]
+}
+```
+
+Nodes may also reference multiple images:
+
+```json
+{
+  "id": "view_photos",
+  "type": "text",
+  "images": [
+    {
+      "path": "images/torn_photo.png",
+      "caption": "The torn photograph."
+    },
+    {
+      "path": "images/ledger_page.png",
+      "caption": "Roy's ledger."
+    }
+  ],
+  "text": "The evidence told its own story."
+}
+```
+
+Referenced image paths must exist inside the `.gbk` package.
 
 Nodes may also grant inline evidence objects:
 

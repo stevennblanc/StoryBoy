@@ -14,10 +14,12 @@ import kotlinx.coroutines.withContext
 class StoryEngineViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = StorySessionRepository(application)
     private val mutableState = MutableStateFlow(StoryEngineState())
+    private var currentGamebookPath: String = ""
 
     val state: StateFlow<StoryEngineState> = mutableState.asStateFlow()
 
     fun load(gamebookPath: String) {
+        currentGamebookPath = gamebookPath
         mutableState.value = StoryEngineState(isLoading = true)
         viewModelScope.launch {
             runCatching {
@@ -69,6 +71,15 @@ class StoryEngineViewModel(application: Application) : AndroidViewModel(applicat
             isLoading = false,
             gamebook = gamebook,
             currentNode = node,
+            currentNodeImages = node.images.map { image ->
+                image.copy(
+                    path = repository.extractStoryAsset(
+                        gamebookPath = currentGamebookPath,
+                        gamebookId = gamebook.metadata.id,
+                        assetPath = image.path,
+                    ) ?: image.path,
+                )
+            },
             collectedEvidence = collectedIds.mapNotNull { gamebook.evidenceCatalog[it] },
         )
     }

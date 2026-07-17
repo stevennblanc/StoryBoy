@@ -67,6 +67,7 @@ object StoryGamebookParser {
             id = nodeId,
             type = type,
             text = nodeJson.optString("text"),
+            images = parseImages(nodeJson),
             choices = choices,
             evidenceGained = parseEvidenceGained(nodeJson),
         )
@@ -100,6 +101,7 @@ object StoryGamebookParser {
             id = nodeId,
             type = type,
             text = text,
+            images = parseImages(nodeJson),
             choices = choices,
             evidenceGained = parseEvidenceGained(nodeJson),
         )
@@ -123,6 +125,7 @@ object StoryGamebookParser {
             id = nodeId,
             type = type,
             text = nodeJson.optString("question"),
+            images = parseImages(nodeJson),
             choices = emptyList(),
             evidenceGained = parseEvidenceGained(nodeJson),
             acceptedAnswers = answers,
@@ -144,6 +147,32 @@ object StoryGamebookParser {
                             targetNodeId = choiceJson.getString("target"),
                         ),
                     )
+                }
+            }
+        }
+    }
+
+    private fun parseImages(nodeJson: JSONObject): List<StoryImage> {
+        val singleImage = nodeJson.optString("image").ifBlank { null }
+        val imagesJson = nodeJson.optJSONArray("images")
+
+        return buildList {
+            if (singleImage != null) {
+                add(StoryImage(path = singleImage, caption = nodeJson.optString("image_caption")))
+            }
+            if (imagesJson != null) {
+                for (index in 0 until imagesJson.length()) {
+                    val image = imagesJson.get(index)
+                    if (image is JSONObject) {
+                        add(
+                            StoryImage(
+                                path = image.getString("path"),
+                                caption = image.optString("caption"),
+                            ),
+                        )
+                    } else {
+                        add(StoryImage(path = image.toString()))
+                    }
                 }
             }
         }

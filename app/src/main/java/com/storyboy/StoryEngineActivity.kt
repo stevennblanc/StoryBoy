@@ -1,5 +1,7 @@
 package com.storyboy
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -32,6 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import com.storyboy.core.Navigation
 import com.storyboy.core.ThemeManager
 import com.storyboy.core.UiConfig
@@ -39,6 +43,7 @@ import com.storyboy.engine.EvidenceItem
 import com.storyboy.engine.StoryChoice
 import com.storyboy.engine.StoryEngineState
 import com.storyboy.engine.StoryEngineViewModel
+import com.storyboy.engine.StoryImage
 
 class StoryEngineActivity : ComponentActivity() {
     private val viewModel: StoryEngineViewModel by viewModels()
@@ -131,6 +136,10 @@ private fun ReaderContent(
                 EvidenceBoard(evidence = state.collectedEvidence)
             }
 
+            state.currentNodeImages.forEach { image ->
+                StoryInlineImage(image = image)
+            }
+
             Text(
                 text = node.text,
                 style = MaterialTheme.typography.bodyLarge.copy(
@@ -157,6 +166,36 @@ private fun ReaderContent(
                         ChoiceButton(choice = choice, onChoice = onChoice)
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StoryInlineImage(image: StoryImage) {
+    val bitmap = remember(image.path) {
+        BitmapFactory.decodeFile(image.path)
+    }
+
+    if (bitmap != null) {
+        Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap)) {
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = image.caption.ifBlank { null },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = UiConfig.Controls.FocusThickness,
+                        color = UiConfig.ThemeColors.ReaderDivider,
+                        shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
+                    ),
+                contentScale = ContentScale.FillWidth,
+            )
+            if (image.caption.isNotBlank()) {
+                Text(
+                    text = image.caption,
+                    style = MaterialTheme.typography.bodyMedium.copy(color = UiConfig.ThemeColors.ReaderMutedText),
+                )
             }
         }
     }

@@ -41,6 +41,24 @@ class GamebookStorage(private val context: Context) {
         }
     }
 
+    fun extractStoryAsset(gamebookPath: String, gamebookId: String, assetPath: String): String? {
+        val targetRoot = File(context.filesDir, "gamebook_assets").apply { mkdirs() }
+        val targetDir = File(targetRoot, gamebookId).apply { mkdirs() }
+        val safeName = assetPath.replace('\\', '/').substringAfterLast('/')
+        if (safeName.isBlank()) return null
+
+        return ZipFile(File(gamebookPath)).use { zipFile ->
+            val entry = zipFile.getEntry(assetPath.replace('\\', '/')) ?: return@use null
+            val targetFile = File(targetDir, safeName)
+            zipFile.getInputStream(entry).use { input ->
+                targetFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            targetFile.absolutePath
+        }
+    }
+
     fun extractArtwork(file: File, metadata: GamebookMetadata): GamebookArtwork {
         val bookArtworkDir = File(artworkDir, metadata.id).apply { mkdirs() }
         var posterPath: String? = null
@@ -84,6 +102,7 @@ class GamebookStorage(private val context: Context) {
     fun deleteGamebook(gamebookId: String): Boolean {
         val bookDeleted = File(gamebooksDir, "$gamebookId.${AppConfig.GamebookExtension}").delete()
         File(artworkDir, gamebookId).deleteRecursively()
+        File(context.filesDir, "gamebook_assets/$gamebookId").deleteRecursively()
         return bookDeleted
     }
 }

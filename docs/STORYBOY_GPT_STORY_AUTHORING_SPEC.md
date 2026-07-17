@@ -7,6 +7,7 @@ A StoryBoy `.gbk` file is a ZIP package containing:
 - `story.json`
 - `poster.png`
 - `banner.png`
+- optional story images, such as maps, clues, sketches, diagrams, or scene art
 
 `story.json` must be valid JSON.
 
@@ -201,6 +202,68 @@ You can also define inline evidence directly on a node:
 }
 ```
 
+## Node Images
+
+Nodes may display simple images from inside the `.gbk` package. Use this for maps, drawings, clues, diagrams, symbols, letters, or meaningful story art.
+
+Prefer grayscale or limited-palette images for e-ink compatibility, but color images are allowed.
+
+The image file must be included in the `.gbk` package and referenced by its package path.
+
+Single image:
+
+```json
+{
+  "id": "view_city_map",
+  "type": "text",
+  "image": "images/city_map.png",
+  "image_caption": "Marlowe Square and the warehouse district.",
+  "text": "The map was marked in blue pencil.",
+  "choices": [
+    {
+      "text": "Study the warehouse district",
+      "target": "warehouse_lead"
+    }
+  ]
+}
+```
+
+Multiple images:
+
+```json
+{
+  "id": "inspect_evidence_photos",
+  "type": "text",
+  "images": [
+    {
+      "path": "images/torn_photo.png",
+      "caption": "The torn photograph recovered from Miles' room."
+    },
+    {
+      "path": "images/ledger_page.png",
+      "caption": "A ledger page with three payments circled."
+    }
+  ],
+  "text": "The evidence did not agree with Evelyn's story.",
+  "choices": [
+    {
+      "text": "Return to the office",
+      "target": "office_hub"
+    }
+  ]
+}
+```
+
+Image rules:
+
+- Use `.png` or `.jpg`
+- Keep image dimensions reasonable for mobile and e-ink targets
+- Use `poster.png` only for the library cover
+- Use `banner.png` only for the cartridge/banner display
+- Put in-story images in a folder such as `images/`
+- Every referenced image path must exist in the `.gbk`
+- Images are optional; do not add decorative images that do not help the story
+
 ## Story Design Categories
 
 These are authoring concepts, not separate engine node types.
@@ -263,6 +326,7 @@ Before packaging:
 - Every `puzzle.correct_target` exists
 - Every `puzzle.incorrect_target` exists
 - Every evidence id is stable and lowercase snake_case
+- Every node image path exists inside the `.gbk`
 - Package contains `story.json`
 - Package contains `poster.png`
 - Package contains `banner.png`
@@ -280,4 +344,8 @@ the_long_shadow.gbk
   story.json
   poster.png
   banner.png
+  images/
+    city_map.png
+    torn_photo.png
+    ledger_page.png
 ```

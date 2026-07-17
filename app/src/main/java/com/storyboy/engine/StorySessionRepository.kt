@@ -14,6 +14,10 @@ class StorySessionRepository(context: Context) {
         return StoryGamebookParser.parse(storage.readStoryJson(File(gamebookPath)))
     }
 
+    fun extractStoryAsset(gamebookPath: String, gamebookId: String, assetPath: String): String? {
+        return storage.extractStoryAsset(gamebookPath, gamebookId, assetPath)
+    }
+
     fun currentNodeId(gamebook: StoryGamebook): String {
         return progressPrefs.getString(currentNodeKey(gamebook.metadata.id), null)
             ?.takeIf { gamebook.nodes.containsKey(it) }

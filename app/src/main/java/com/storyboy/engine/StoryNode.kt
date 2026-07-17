@@ -4,6 +4,7 @@ data class StoryNode(
     val id: String,
     val type: String,
     val text: String,
+    val images: List<StoryImage>,
     val choices: List<StoryChoice>,
     val evidenceGained: List<EvidenceItem> = emptyList(),
     val acceptedAnswers: List<String> = emptyList(),
