@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -135,6 +137,7 @@ fun LauncherScreen(
                             isLoading = state.isLoadingLibrary,
                             books = filteredLibrary,
                             displayMode = state.libraryDisplayMode,
+                            onBrowseStore = { launcherViewModel.selectTab(LauncherTab.Store) },
                             onSelect = launcherViewModel::selectLocalGamebook,
                         )
 
@@ -358,11 +361,12 @@ private fun LibraryShelf(
     isLoading: Boolean,
     books: List<LocalGamebook>,
     displayMode: LibraryDisplayMode,
+    onBrowseStore: () -> Unit,
     onSelect: (LocalGamebook) -> Unit,
 ) {
     when {
         isLoading -> ProgressText("Loading library")
-        books.isEmpty() -> EmptyState("No gamebooks downloaded")
+        books.isEmpty() -> EmptyLibraryState(onBrowseStore = onBrowseStore)
         displayMode == LibraryDisplayMode.Book -> BookGrid(books = books, onSelect = onSelect)
         else -> CartridgeList(books = books, onSelect = onSelect)
     }
@@ -559,6 +563,7 @@ private fun LocalGamebookDetail(
             modifier = Modifier.width(UiConfig.ImageSizes.GamePosterGridWidth),
         )
         DetailCopy(metadata = gamebook.metadata)
+        FeatureChips(features = gamebook.metadata.featureLabels())
         Button(onClick = onPlay, modifier = Modifier.fillMaxWidth()) {
             Text(if (gamebook.hasPlaythroughInProgress) "Resume" else "Play")
         }
@@ -581,6 +586,7 @@ private fun StoreGamebookDetail(
             modifier = Modifier.width(UiConfig.ImageSizes.GamePosterGridWidth),
         )
         DetailCopy(metadata = gamebook.metadata)
+        FeatureChips(features = gamebook.metadata.featureLabels())
         Button(
             onClick = onDownload,
             enabled = !gamebook.isDownloaded || gamebook.updateAvailable,
@@ -591,6 +597,30 @@ private fun StoreGamebookDetail(
         if (gamebook.isDownloaded) {
             Text(
                 text = "Installed: ${gamebook.localVersion}",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+private fun FeatureChips(features: List<String>) {
+    if (features.isEmpty()) return
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
+        verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
+    ) {
+        features.forEach { feature ->
+            Text(
+                text = feature,
+                modifier = Modifier
+                    .background(ThemeManager.colors.SurfaceCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
+                    .padding(
+                        horizontal = UiConfig.Spacing.ListBuffer,
+                        vertical = UiConfig.Spacing.ItemGap,
+                    ),
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
@@ -687,6 +717,24 @@ private fun EmptyState(text: String) {
 }
 
 @Composable
+private fun EmptyLibraryState(onBrowseStore: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
+    ) {
+        Text(text = "No gamebooks downloaded", style = MaterialTheme.typography.headlineMedium)
+        Text(
+            text = "Browse the store to download a free adventure for offline play.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Button(onClick = onBrowseStore) {
+            Text("Browse Store")
+        }
+    }
+}
+
+@Composable
 private fun ProgressText(text: String) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -728,4 +776,17 @@ private fun LibrarySortMode.comparator(): Comparator<LocalGamebook> {
         LibrarySortMode.Title -> compareBy(String.CASE_INSENSITIVE_ORDER) { it.metadata.title }
         LibrarySortMode.Author -> compareBy(String.CASE_INSENSITIVE_ORDER) { it.metadata.author }
     }
+}
+
+private fun GamebookMetadata.featureLabels(): List<String> {
+    val text = "$title $genre $description".lowercase()
+    return buildList {
+        if ("detective" in text || "mystery" in text || "noir" in text) add("Evidence")
+        if ("inventory" in text) add("Inventory")
+        if ("puzzle" in text) add("Puzzles")
+        if ("battle" in text) add("Battles")
+        if ("map" in text) add("Map")
+        if (isEmpty()) add("Interactive story")
+        add("Offline")
+    }.distinct()
 }
