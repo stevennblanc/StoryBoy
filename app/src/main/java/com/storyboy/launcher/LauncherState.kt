@@ -6,6 +6,7 @@ import com.storyboy.models.StoreGamebook
 data class LauncherState(
     val selectedTab: LauncherTab = LauncherTab.Library,
     val libraryDisplayMode: LibraryDisplayMode = LibraryDisplayMode.Book,
+    val librarySortMode: LibrarySortMode = LibrarySortMode.Title,
     val progressFilter: ProgressFilter = ProgressFilter.All,
     val selectedGenre: String? = null,
     val searchQuery: String = "",

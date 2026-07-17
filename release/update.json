@@ -1,6 +1,6 @@
 {
-  "versionCode": 13,
-  "versionName": "0.13.0",
+  "versionCode": 14,
+  "versionName": "0.14.0",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "Adds icon bottom navigation, library filters, view toggles, profile settings, and moves app updates into Settings."
+  "releaseNotes": "Adds library view/sort menu, improves list rows, and removes extra reader image/button borders."
 }

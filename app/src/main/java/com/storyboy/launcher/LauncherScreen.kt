@@ -79,6 +79,7 @@ fun LauncherScreen(
                 ProgressFilter.NotStarted -> !it.hasPlaythroughInProgress
             }
         }
+        .sortedWith(state.librarySortMode.comparator())
     val filteredStore = state.store
         .filter { it.metadata.matches(state.searchQuery) }
         .filter { state.selectedGenre == null || it.metadata.genre == state.selectedGenre }
@@ -103,6 +104,7 @@ fun LauncherScreen(
                 LauncherHeader(
                     selectedTab = state.selectedTab,
                     displayMode = state.libraryDisplayMode,
+                    sortMode = state.librarySortMode,
                     genres = genres,
                     selectedGenre = state.selectedGenre,
                     progressFilter = state.progressFilter,
@@ -114,6 +116,7 @@ fun LauncherScreen(
                         }
                     },
                     onDisplayModeChange = launcherViewModel::selectLibraryDisplayMode,
+                    onSortModeChange = launcherViewModel::selectLibrarySortMode,
                     onGenreChange = launcherViewModel::selectGenreFilter,
                     onProgressFilterChange = launcherViewModel::selectProgressFilter,
                 )
@@ -178,15 +181,18 @@ fun LauncherScreen(
 private fun LauncherHeader(
     selectedTab: LauncherTab,
     displayMode: LibraryDisplayMode,
+    sortMode: LibrarySortMode,
     genres: List<String>,
     selectedGenre: String?,
     progressFilter: ProgressFilter,
     onRefresh: () -> Unit,
     onDisplayModeChange: (LibraryDisplayMode) -> Unit,
+    onSortModeChange: (LibrarySortMode) -> Unit,
     onGenreChange: (String?) -> Unit,
     onProgressFilterChange: (ProgressFilter) -> Unit,
 ) {
     var filterMenuOpen by remember { mutableStateOf(false) }
+    var viewMenuOpen by remember { mutableStateOf(false) }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -243,18 +249,36 @@ private fun LauncherHeader(
                 }
             }
             if (selectedTab == LauncherTab.Library) {
-                IconButton(
-                    onClick = {
-                        onDisplayModeChange(
-                            if (displayMode == LibraryDisplayMode.Book) {
-                                LibraryDisplayMode.Cartridge
-                            } else {
-                                LibraryDisplayMode.Book
+                Box {
+                    IconButton(onClick = { viewMenuOpen = true }) {
+                        StoryBoyIcon(kind = StoryBoyIconKind.Sort, color = ThemeManager.colors.BodyText)
+                    }
+                    DropdownMenu(expanded = viewMenuOpen, onDismissRequest = { viewMenuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Book view") },
+                            onClick = {
+                                onDisplayModeChange(LibraryDisplayMode.Book)
+                                viewMenuOpen = false
                             },
                         )
-                    },
-                ) {
-                    StoryBoyIcon(kind = StoryBoyIconKind.Sort, color = ThemeManager.colors.BodyText)
+                        DropdownMenuItem(
+                            text = { Text("List view") },
+                            onClick = {
+                                onDisplayModeChange(LibraryDisplayMode.Cartridge)
+                                viewMenuOpen = false
+                            },
+                        )
+                        HorizontalDivider(color = ThemeManager.colors.SubDivider)
+                        LibrarySortMode.values().forEach { mode ->
+                            DropdownMenuItem(
+                                text = { Text(mode.label) },
+                                onClick = {
+                                    onSortModeChange(mode)
+                                    viewMenuOpen = false
+                                },
+                            )
+                        }
+                    }
                 }
             }
             IconButton(onClick = onRefresh) {
@@ -425,10 +449,44 @@ private fun CartridgeList(
                 ArtworkFrame(
                     artworkPath = book.bannerPath ?: book.posterPath,
                     displayMode = LibraryDisplayMode.Cartridge,
+                    modifier = Modifier.width(UiConfig.ImageSizes.GameBannerListWidth),
                 )
-                BookSummary(metadata = book.metadata, status = if (book.hasPlaythroughInProgress) "In progress" else "New")
+                BookListSummary(
+                    metadata = book.metadata,
+                    status = if (book.hasPlaythroughInProgress) "In progress" else "New",
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun BookListSummary(
+    metadata: GamebookMetadata,
+    status: String,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
+    ) {
+        Text(
+            text = metadata.title,
+            style = MaterialTheme.typography.headlineMedium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = metadata.author,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = "${metadata.genre} - $status",
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -577,9 +635,10 @@ private fun ArtworkFrame(
     }
     val frameModifier = when (displayMode) {
         LibraryDisplayMode.Book -> modifier.aspectRatio(0.69f)
-        LibraryDisplayMode.Cartridge -> modifier
-            .fillMaxWidth()
+        LibraryDisplayMode.Cartridge -> Modifier
+            .width(UiConfig.ImageSizes.GameBannerListWidth)
             .height(UiConfig.ImageSizes.GameBannerListHeight)
+            .then(modifier)
     }
 
     Box(
@@ -646,5 +705,12 @@ private fun StoreGamebook.storeActionText(): String {
         updateAvailable -> "Update downloaded copy"
         isDownloaded -> "Downloaded"
         else -> "Download for offline play"
+    }
+}
+
+private fun LibrarySortMode.comparator(): Comparator<LocalGamebook> {
+    return when (this) {
+        LibrarySortMode.Title -> compareBy(String.CASE_INSENSITIVE_ORDER) { it.metadata.title }
+        LibrarySortMode.Author -> compareBy(String.CASE_INSENSITIVE_ORDER) { it.metadata.author }
     }
 }

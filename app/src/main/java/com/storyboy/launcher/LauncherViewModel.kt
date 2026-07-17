@@ -44,6 +44,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         mutableState.update { it.copy(libraryDisplayMode = displayMode) }
     }
 
+    fun selectLibrarySortMode(sortMode: LibrarySortMode) {
+        mutableState.update { it.copy(librarySortMode = sortMode) }
+    }
+
     fun selectProgressFilter(filter: ProgressFilter) {
         mutableState.update { it.copy(progressFilter = filter) }
     }

@@ -217,13 +217,7 @@ private fun StoryInlineImage(image: StoryImage) {
             Image(
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = image.caption.ifBlank { null },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(
-                        width = UiConfig.Controls.FocusThickness,
-                        color = ThemeManager.colors.ReaderDivider,
-                        shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
-                    ),
+                modifier = Modifier.fillMaxWidth(),
                 contentScale = ContentScale.FillWidth,
             )
             if (image.caption.isNotBlank()) {
@@ -496,13 +490,7 @@ private fun MapPicker(
                         ),
                     )
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(
-                        width = UiConfig.Controls.FocusThickness,
-                        color = ThemeManager.colors.ReaderDivider,
-                        shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
-                    ),
+                modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = ThemeManager.colors.ReaderChoiceCol,
                     contentColor = ThemeManager.colors.ReaderText,
@@ -532,13 +520,7 @@ private fun ChoiceButton(
 ) {
     Button(
         onClick = { onChoice(choice) },
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(
-                width = UiConfig.Controls.FocusThickness,
-                color = ThemeManager.colors.ReaderDivider,
-                shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
-            ),
+        modifier = Modifier.fillMaxWidth(),
         colors = ButtonDefaults.buttonColors(
             containerColor = ThemeManager.colors.ReaderChoiceCol,
             contentColor = ThemeManager.colors.ReaderText,
