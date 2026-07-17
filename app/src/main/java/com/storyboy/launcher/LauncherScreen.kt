@@ -73,17 +73,25 @@ fun LauncherScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(UiConfig.Spacing.ScreenPadding),
+                .padding(
+                    horizontal = UiConfig.Spacing.ScreenPadding,
+                    vertical = UiConfig.Spacing.ListBuffer,
+                ),
             verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
         ) {
-            LauncherTopBar(onOpenSettings = onOpenSettings)
+            LauncherTopBar(
+                selectedTab = state.selectedTab,
+                onRefresh = {
+                    if (state.selectedTab == LauncherTab.Library) {
+                        launcherViewModel.refreshLibrary()
+                    } else {
+                        launcherViewModel.refreshStore()
+                    }
+                },
+            )
             SearchBar(
                 query = state.searchQuery,
                 onQueryChange = launcherViewModel::updateSearchQuery,
-            )
-            LauncherTabs(
-                selectedTab = state.selectedTab,
-                onSelectTab = launcherViewModel::selectTab,
             )
 
             state.message?.let { message ->
@@ -96,7 +104,6 @@ fun LauncherScreen(
                         isLoading = state.isLoadingLibrary,
                         books = filteredLibrary,
                         displayMode = state.libraryDisplayMode,
-                        onRefresh = launcherViewModel::refreshLibrary,
                         onDisplayModeChange = launcherViewModel::selectLibraryDisplayMode,
                         onSelect = launcherViewModel::selectLocalGamebook,
                     )
@@ -104,7 +111,6 @@ fun LauncherScreen(
                     LauncherTab.Store -> StoreShelf(
                         isLoading = state.isLoadingStore,
                         books = filteredStore,
-                        onRefresh = launcherViewModel::refreshStore,
                         onSelect = launcherViewModel::selectStoreGamebook,
                     )
                 }
@@ -116,6 +122,11 @@ fun LauncherScreen(
                 onCheck = updateViewModel::checkForUpdates,
                 onDownload = updateViewModel::downloadAndInstall,
                 onInstall = updateViewModel::installPendingUpdate,
+            )
+            BottomNav(
+                selectedTab = state.selectedTab,
+                onSelectTab = launcherViewModel::selectTab,
+                onOpenSettings = onOpenSettings,
             )
         }
 
@@ -143,23 +154,26 @@ fun LauncherScreen(
 }
 
 @Composable
-private fun LauncherTopBar(onOpenSettings: () -> Unit) {
+private fun LauncherTopBar(
+    selectedTab: LauncherTab,
+    onRefresh: () -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column {
-            Text(text = AppConfig.AppName, style = MaterialTheme.typography.displayMedium)
-            Text(text = "Interactive library", style = MaterialTheme.typography.bodyMedium)
+            Text(text = selectedTab.name, style = MaterialTheme.typography.displayMedium)
+            Text(text = AppConfig.AppName, style = MaterialTheme.typography.bodyMedium)
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = "Offline ready", style = MaterialTheme.typography.labelLarge)
-            TextButton(onClick = onOpenSettings) {
-                Text("Settings")
+            Text(text = "Offline ready", style = MaterialTheme.typography.bodyMedium)
+            TextButton(onClick = onRefresh) {
+                Text("Refresh")
             }
         }
     }
@@ -180,28 +194,73 @@ private fun SearchBar(
 }
 
 @Composable
-private fun LauncherTabs(
+private fun BottomNav(
     selectedTab: LauncherTab,
     onSelectTab: (LauncherTab) -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap)) {
+    val colors = ThemeManager.colors
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(colors.SurfaceCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
+            .padding(UiConfig.Spacing.ItemGap),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        BottomNavItem(
+            label = "Library",
+            selected = selectedTab == LauncherTab.Library,
+            onClick = { onSelectTab(LauncherTab.Library) },
+        )
+        BottomNavItem(
+            label = "Store",
+            selected = selectedTab == LauncherTab.Store,
+            onClick = { onSelectTab(LauncherTab.Store) },
+        )
+        BottomNavItem(
+            label = "Settings",
+            selected = false,
+            onClick = onOpenSettings,
+        )
+    }
+}
+
+@Composable
+private fun BottomNavItem(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    TextButton(onClick = onClick) {
+        Text(
+            text = label,
+            color = if (selected) ThemeManager.colors.AccentCol else ThemeManager.colors.BodyText,
+        )
+    }
+}
+
+@Composable
+private fun LibraryTools(
+    displayMode: LibraryDisplayMode,
+    onDisplayModeChange: (LibraryDisplayMode) -> Unit,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         val colors = ThemeManager.colors
-        LauncherTab.values().forEach { tab ->
-            val selected = selectedTab == tab
+        LibraryDisplayMode.values().forEach { mode ->
+            val selected = mode == displayMode
             TextButton(
-                onClick = { onSelectTab(tab) },
-                modifier = Modifier
-                    .background(
-                        color = if (selected) colors.ElevatedSurfaceCol else colors.SurfaceCol,
-                        shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
-                    )
-                    .border(
-                        width = UiConfig.Controls.FocusThickness,
-                        color = if (selected) colors.FocusCol else colors.SubDivider,
-                        shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
-                    ),
+                onClick = { onDisplayModeChange(mode) },
+                modifier = Modifier.border(
+                    width = UiConfig.Controls.FocusThickness,
+                    color = if (selected) colors.FocusCol else colors.SubDivider,
+                    shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
+                ),
             ) {
-                Text(tab.name)
+                Text(mode.name)
             }
         }
     }
@@ -212,7 +271,6 @@ private fun LibraryShelf(
     isLoading: Boolean,
     books: List<LocalGamebook>,
     displayMode: LibraryDisplayMode,
-    onRefresh: () -> Unit,
     onDisplayModeChange: (LibraryDisplayMode) -> Unit,
     onSelect: (LocalGamebook) -> Unit,
 ) {
@@ -220,9 +278,7 @@ private fun LibraryShelf(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
     ) {
-        ShelfControls(
-            primaryAction = "Refresh",
-            onPrimaryAction = onRefresh,
+        LibraryTools(
             displayMode = displayMode,
             onDisplayModeChange = onDisplayModeChange,
         )
@@ -240,17 +296,12 @@ private fun LibraryShelf(
 private fun StoreShelf(
     isLoading: Boolean,
     books: List<StoreGamebook>,
-    onRefresh: () -> Unit,
     onSelect: (StoreGamebook) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
     ) {
-        Button(onClick = onRefresh) {
-            Text("Refresh store")
-        }
-
         when {
             isLoading -> ProgressText("Loading store")
             books.isEmpty() -> EmptyState("No adventures available")
@@ -258,37 +309,6 @@ private fun StoreShelf(
                 items(books, key = { it.metadata.id }) { book ->
                     StoreRow(book = book, onSelect = { onSelect(book) })
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ShelfControls(
-    primaryAction: String,
-    onPrimaryAction: () -> Unit,
-    displayMode: LibraryDisplayMode,
-    onDisplayModeChange: (LibraryDisplayMode) -> Unit,
-) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val colors = ThemeManager.colors
-        Button(onClick = onPrimaryAction) {
-            Text(primaryAction)
-        }
-        LibraryDisplayMode.values().forEach { mode ->
-            val selected = mode == displayMode
-            TextButton(
-                onClick = { onDisplayModeChange(mode) },
-                modifier = Modifier.border(
-                    width = UiConfig.Controls.FocusThickness,
-                    color = if (selected) colors.FocusCol else colors.SubDivider,
-                    shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
-                ),
-            ) {
-                Text(mode.name)
             }
         }
     }
@@ -379,7 +399,11 @@ private fun StoreRow(
         horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ArtworkFrame(artworkPath = null, displayMode = LibraryDisplayMode.Book)
+        ArtworkFrame(
+            artworkPath = null,
+            displayMode = LibraryDisplayMode.Book,
+            modifier = Modifier.width(UiConfig.ImageSizes.StorePosterWidth),
+        )
         BookSummary(metadata = book.metadata, status = book.storeStatusText())
     }
 }

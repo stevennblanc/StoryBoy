@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import com.storyboy.core.Navigation
 import com.storyboy.core.ThemeManager
 import com.storyboy.core.UiConfig
@@ -94,7 +95,10 @@ private fun StoryReaderScreen(
             .fillMaxSize()
             .background(ThemeManager.colors.ReaderPageCol)
             .safeDrawingPadding()
-            .padding(UiConfig.Spacing.ScreenPadding),
+            .padding(
+                horizontal = UiConfig.Spacing.ScreenPadding,
+                vertical = UiConfig.Spacing.ItemGap,
+            ),
     ) {
         when {
             state.isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -127,7 +131,7 @@ private fun ReaderContent(
 
     Column(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
+        verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
     ) {
         ReaderTopBar(
             title = gamebook.metadata.title,
@@ -144,7 +148,7 @@ private fun ReaderContent(
                 .weight(1f)
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.SectionGap),
+            verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
         ) {
             if (showEvidence) {
                 EvidenceBoard(evidence = state.collectedEvidence)
@@ -379,27 +383,36 @@ private fun ReaderTopBar(
     onEvidence: () -> Unit,
     onInventory: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        TextButton(onClick = onBack) {
-            Text("Library")
+    Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = onBack) {
+                Text("Library", maxLines = 1)
+            }
+            Text(
+                text = title,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium.copy(color = ThemeManager.colors.ReaderMutedText),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            TextButton(onClick = onRestart) {
+                Text("Restart", maxLines = 1)
+            }
         }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyMedium.copy(color = ThemeManager.colors.ReaderMutedText),
-        )
-        Row {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             TextButton(onClick = onInventory, enabled = inventoryCount > 0) {
-                Text("Items $inventoryCount")
+                Text("Items $inventoryCount", maxLines = 1)
             }
             TextButton(onClick = onEvidence, enabled = evidenceCount > 0) {
-                Text("Evidence $evidenceCount")
-            }
-            TextButton(onClick = onRestart) {
-                Text("Restart")
+                Text("Evidence $evidenceCount", maxLines = 1)
             }
         }
     }

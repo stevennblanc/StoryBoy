@@ -100,6 +100,8 @@ object UiConfig {
     object ImageSizes {
         val GamePosterListWidth = 72.dp
         val GamePosterListHeight = 104.dp
+        val StorePosterWidth = 88.dp
+        val StorePosterHeight = 128.dp
         val GameBannerListWidth = 148.dp
         val GameBannerListHeight = 84.dp
         val GamePosterGridWidth = 128.dp
@@ -117,7 +119,7 @@ object UiConfig {
 
     object Controls {
         val ButtonRadius = 6.dp
-        val FocusThickness = 2.dp
+        val FocusThickness = 1.dp
         val PosterCornerRadius = 4.dp
         val MinimumTouchTarget = 48.dp
     }

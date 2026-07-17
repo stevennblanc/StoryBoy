@@ -96,7 +96,7 @@ object ThemeManager {
                 color = colors.BodyText,
             ),
             labelLarge = TextStyle(
-                fontFamily = UiConfig.Fonts.SecondaryFontFamily,
+                fontFamily = UiConfig.Fonts.PrimaryFontFamily,
                 fontSize = UiConfig.Fonts.Secondary2.scaled(fontScale),
                 color = colors.TopBarText,
             ),
