@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import com.storyboy.core.Navigation
 import com.storyboy.core.ThemeManager
 import com.storyboy.core.UiConfig
+import com.storyboy.engine.EvidenceItem
 import com.storyboy.engine.StoryChoice
 import com.storyboy.engine.StoryEngineState
 import com.storyboy.engine.StoryEngineViewModel
@@ -105,6 +106,7 @@ private fun ReaderContent(
 ) {
     val gamebook = state.gamebook ?: return
     val node = state.currentNode ?: return
+    var showEvidence by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -112,8 +114,10 @@ private fun ReaderContent(
     ) {
         ReaderTopBar(
             title = gamebook.metadata.title,
+            evidenceCount = state.collectedEvidence.size,
             onBack = onBack,
             onRestart = onRestart,
+            onEvidence = { showEvidence = !showEvidence },
         )
 
         Column(
@@ -123,6 +127,10 @@ private fun ReaderContent(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.SectionGap),
         ) {
+            if (showEvidence) {
+                EvidenceBoard(evidence = state.collectedEvidence)
+            }
+
             Text(
                 text = node.text,
                 style = MaterialTheme.typography.bodyLarge.copy(
@@ -191,8 +199,10 @@ private fun PuzzleInput(
 @Composable
 private fun ReaderTopBar(
     title: String,
+    evidenceCount: Int,
     onBack: () -> Unit,
     onRestart: () -> Unit,
+    onEvidence: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -206,8 +216,48 @@ private fun ReaderTopBar(
             text = title,
             style = MaterialTheme.typography.bodyMedium.copy(color = UiConfig.ThemeColors.ReaderMutedText),
         )
-        TextButton(onClick = onRestart) {
-            Text("Restart")
+        Row {
+            TextButton(onClick = onEvidence, enabled = evidenceCount > 0) {
+                Text("Evidence $evidenceCount")
+            }
+            TextButton(onClick = onRestart) {
+                Text("Restart")
+            }
+        }
+    }
+}
+
+@Composable
+private fun EvidenceBoard(evidence: List<EvidenceItem>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(UiConfig.ThemeColors.ReaderChoiceCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
+            .border(
+                width = UiConfig.Controls.FocusThickness,
+                color = UiConfig.ThemeColors.ReaderDivider,
+                shape = RoundedCornerShape(UiConfig.Controls.ButtonRadius),
+            )
+            .padding(UiConfig.Spacing.ListBuffer),
+        verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
+    ) {
+        Text(
+            text = "Evidence Board",
+            style = MaterialTheme.typography.headlineMedium.copy(color = UiConfig.ThemeColors.ReaderText),
+        )
+        evidence.forEach { item ->
+            Column {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.labelLarge.copy(color = UiConfig.ThemeColors.ReaderText),
+                )
+                if (item.description.isNotBlank()) {
+                    Text(
+                        text = item.description,
+                        style = MaterialTheme.typography.bodyMedium.copy(color = UiConfig.ThemeColors.ReaderMutedText),
+                    )
+                }
+            }
         }
     }
 }

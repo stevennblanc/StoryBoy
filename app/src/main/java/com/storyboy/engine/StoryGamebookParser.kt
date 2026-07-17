@@ -17,10 +17,12 @@ object StoryGamebookParser {
         require(nodes.containsKey(metadata.startNodeId)) { "Start node does not exist." }
 
         nodes.validateTargets()
+        val evidenceCatalog = parseEvidenceCatalog(source, nodes)
 
         return StoryGamebook(
             metadata = metadata,
             nodes = nodes,
+            evidenceCatalog = evidenceCatalog,
         )
     }
 
@@ -66,6 +68,7 @@ object StoryGamebookParser {
             type = type,
             text = nodeJson.optString("text"),
             choices = choices,
+            evidenceGained = parseEvidenceGained(nodeJson),
         )
     }
 
@@ -98,6 +101,7 @@ object StoryGamebookParser {
             type = type,
             text = text,
             choices = choices,
+            evidenceGained = parseEvidenceGained(nodeJson),
         )
     }
 
@@ -120,6 +124,7 @@ object StoryGamebookParser {
             type = type,
             text = nodeJson.optString("question"),
             choices = emptyList(),
+            evidenceGained = parseEvidenceGained(nodeJson),
             acceptedAnswers = answers,
             correctTargetNodeId = nodeJson.optString("correct_target").ifBlank { null },
             incorrectTargetNodeId = nodeJson.optString("incorrect_target").ifBlank {
@@ -144,6 +149,37 @@ object StoryGamebookParser {
         }
     }
 
+    private fun parseEvidenceCatalog(
+        source: JSONObject,
+        nodes: Map<String, StoryNode>,
+    ): Map<String, EvidenceItem> {
+        val catalog = linkedMapOf<String, EvidenceItem>()
+        val evidenceJson = source.optJSONArray("evidence")
+        if (evidenceJson != null) {
+            for (index in 0 until evidenceJson.length()) {
+                val item = evidenceJson.getEvidenceItem(index)
+                catalog[item.id] = item
+            }
+        }
+        nodes.values
+            .flatMap { it.evidenceGained }
+            .forEach { item -> catalog[item.id] = item }
+        return catalog
+    }
+
+    private fun parseEvidenceGained(nodeJson: JSONObject): List<EvidenceItem> {
+        val evidenceJson = nodeJson.optJSONArray("evidence")
+            ?: nodeJson.optJSONArray("gain_evidence")
+            ?: nodeJson.optJSONArray("gains_evidence")
+            ?: return emptyList()
+
+        return buildList {
+            for (index in 0 until evidenceJson.length()) {
+                add(evidenceJson.getEvidenceItem(index))
+            }
+        }
+    }
+
     private fun Map<String, StoryNode>.validateTargets() {
         values.forEach { node ->
             node.choices.forEach { choice ->
@@ -161,6 +197,32 @@ object StoryGamebookParser {
     }
 }
 
+private fun JSONArray.getEvidenceItem(index: Int): EvidenceItem {
+    val rawItem = get(index)
+    return if (rawItem is JSONObject) {
+        val id = rawItem.getString("id")
+        EvidenceItem(
+            id = id,
+            title = rawItem.optString("title", id.toEvidenceTitle()),
+            description = rawItem.optString("description"),
+        )
+    } else {
+        val id = rawItem.toString()
+        EvidenceItem(
+            id = id,
+            title = id.toEvidenceTitle(),
+            description = "",
+        )
+    }
+}
+
 fun String.normalizeAnswer(): String {
     return trim().lowercase().replace(Regex("\\s+"), " ")
+}
+
+private fun String.toEvidenceTitle(): String {
+    return replace(Regex("[_\\-]+"), " ")
+        .split(" ")
+        .filter { it.isNotBlank() }
+        .joinToString(" ") { word -> word.replaceFirstChar { it.titlecase() } }
 }

@@ -1,6 +1,6 @@
 {
-  "versionCode": 5,
-  "versionName": "0.5.0",
+  "versionCode": 6,
+  "versionName": "0.6.0",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "Fixes story node parsing and adds lore and puzzle node support."
+  "releaseNotes": "Adds the StoryBoy story design standard and evidence board foundation."
 }

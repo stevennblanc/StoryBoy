@@ -26,12 +26,7 @@ class StoryEngineViewModel(application: Application) : AndroidViewModel(applicat
                 }
             }.onSuccess { gamebook ->
                 val nodeId = repository.currentNodeId(gamebook)
-                repository.saveCurrentNode(gamebook.metadata.id, nodeId)
-                mutableState.value = StoryEngineState(
-                    isLoading = false,
-                    gamebook = gamebook,
-                    currentNode = gamebook.node(nodeId),
-                )
+                enterNode(gamebook = gamebook, node = gamebook.node(nodeId))
             }.onFailure { throwable ->
                 mutableState.value = StoryEngineState(
                     isLoading = false,
@@ -44,8 +39,7 @@ class StoryEngineViewModel(application: Application) : AndroidViewModel(applicat
     fun choose(choice: StoryChoice) {
         val gamebook = mutableState.value.gamebook ?: return
         val targetNode = runCatching { gamebook.node(choice.targetNodeId) }.getOrElse { return }
-        repository.saveCurrentNode(gamebook.metadata.id, targetNode.id)
-        mutableState.update { it.copy(currentNode = targetNode) }
+        enterNode(gamebook = gamebook, node = targetNode)
     }
 
     fun submitPuzzleAnswer(answer: String) {
@@ -57,14 +51,25 @@ class StoryEngineViewModel(application: Application) : AndroidViewModel(applicat
             node.incorrectTargetNodeId
         } ?: return
         val targetNode = runCatching { gamebook.node(targetNodeId) }.getOrElse { return }
-        repository.saveCurrentNode(gamebook.metadata.id, targetNode.id)
-        mutableState.update { it.copy(currentNode = targetNode) }
+        enterNode(gamebook = gamebook, node = targetNode)
     }
 
     fun restart() {
         val gamebook = mutableState.value.gamebook ?: return
         repository.reset(gamebook.metadata.id)
-        repository.saveCurrentNode(gamebook.metadata.id, gamebook.metadata.startNodeId)
-        mutableState.update { it.copy(currentNode = gamebook.node(gamebook.metadata.startNodeId)) }
+        enterNode(gamebook = gamebook, node = gamebook.node(gamebook.metadata.startNodeId))
+    }
+
+    private fun enterNode(gamebook: StoryGamebook, node: StoryNode) {
+        val collectedIds = repository.collectedEvidenceIds(gamebook.metadata.id)
+            .plus(node.evidenceGained.map { it.id })
+        repository.saveCurrentNode(gamebook.metadata.id, node.id)
+        repository.saveEvidence(gamebook.metadata.id, collectedIds)
+        mutableState.value = StoryEngineState(
+            isLoading = false,
+            gamebook = gamebook,
+            currentNode = node,
+            collectedEvidence = collectedIds.mapNotNull { gamebook.evidenceCatalog[it] },
+        )
     }
 }

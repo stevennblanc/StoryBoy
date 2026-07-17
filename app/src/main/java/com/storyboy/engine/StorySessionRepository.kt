@@ -27,14 +27,27 @@ class StorySessionRepository(context: Context) {
             .apply()
     }
 
+    fun collectedEvidenceIds(gamebookId: String): Set<String> {
+        return progressPrefs.getStringSet(evidenceKey(gamebookId), emptySet()).orEmpty()
+    }
+
+    fun saveEvidence(gamebookId: String, evidenceIds: Set<String>) {
+        progressPrefs.edit()
+            .putStringSet(evidenceKey(gamebookId), evidenceIds)
+            .apply()
+    }
+
     fun reset(gamebookId: String) {
         progressPrefs.edit()
             .remove(currentNodeKey(gamebookId))
             .remove(startedKey(gamebookId))
+            .remove(evidenceKey(gamebookId))
             .apply()
     }
 
     private fun currentNodeKey(gamebookId: String): String = "current_node_$gamebookId"
 
     private fun startedKey(gamebookId: String): String = "started_$gamebookId"
+
+    private fun evidenceKey(gamebookId: String): String = "evidence_$gamebookId"
 }

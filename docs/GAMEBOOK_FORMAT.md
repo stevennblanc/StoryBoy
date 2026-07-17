@@ -36,11 +36,19 @@ first-adventure.gbk
     "start_node": "start",
     "version": "1.0.0"
   },
+  "evidence": [
+    {
+      "id": "torn_photograph",
+      "title": "Torn Photograph",
+      "description": "A damaged photo recovered during the investigation."
+    }
+  ],
   "nodes": [
     {
       "id": "start",
       "type": "lore",
       "text": "The story begins.",
+      "evidence": ["torn_photograph"],
       "choices": []
     }
   ]
@@ -55,6 +63,53 @@ StoryBoy rejects files that:
 - do not contain `metadata`
 - do not contain a non-empty `nodes` array
 - reference a `metadata.start_node` that is missing from `nodes`
+
+## Evidence
+
+Evidence is optional. A book may define a top-level `evidence` catalog and grant evidence from any node.
+
+```json
+{
+  "evidence": [
+    {
+      "id": "roy_ledger",
+      "title": "Roy's Ledger",
+      "description": "A ledger showing payments tied to the docks."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "find_ledger",
+      "type": "text",
+      "text": "The ledger was hidden under the loose floorboard.",
+      "evidence": ["roy_ledger"],
+      "choices": [
+        {
+          "text": "Return to the office",
+          "target": "office"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Nodes may also grant inline evidence objects:
+
+```json
+{
+  "id": "find_photo",
+  "type": "text",
+  "text": "Half a photograph was tucked behind the mirror.",
+  "evidence": [
+    {
+      "id": "torn_photo",
+      "title": "Torn Photograph",
+      "description": "The missing half of Miles' photograph."
+    }
+  ]
+}
+```
 
 Artwork files are optional, but the preferred names are:
 
