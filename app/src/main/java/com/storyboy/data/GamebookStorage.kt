@@ -80,6 +80,12 @@ class GamebookStorage(private val context: Context) {
         tempFile.delete()
         return targetFile
     }
+
+    fun deleteGamebook(gamebookId: String): Boolean {
+        val bookDeleted = File(gamebooksDir, "$gamebookId.${AppConfig.GamebookExtension}").delete()
+        File(artworkDir, gamebookId).deleteRecursively()
+        return bookDeleted
+    }
 }
 
 private fun ZipFile.extractFirstMatching(

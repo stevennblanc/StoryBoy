@@ -117,6 +117,7 @@ fun LauncherScreen(
             LocalGamebookDetail(
                 gamebook = gamebook,
                 onClose = launcherViewModel::closeDetail,
+                onDelete = { launcherViewModel.deleteLocalGamebook(gamebook) },
                 onPlay = {
                     launcherViewModel.markStarted(gamebook)
                     launcherViewModel.closeDetail()
@@ -361,7 +362,7 @@ private fun StoreRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ArtworkFrame(artworkPath = null, displayMode = LibraryDisplayMode.Book)
-        BookSummary(metadata = book.metadata, status = if (book.isDownloaded) "Downloaded" else "Available")
+        BookSummary(metadata = book.metadata, status = book.storeStatusText())
     }
 }
 
@@ -385,6 +386,7 @@ private fun BookSummary(
 private fun LocalGamebookDetail(
     gamebook: LocalGamebook,
     onClose: () -> Unit,
+    onDelete: () -> Unit,
     onPlay: () -> Unit,
 ) {
     DetailPanel(onClose = onClose) {
@@ -396,6 +398,9 @@ private fun LocalGamebookDetail(
         DetailCopy(metadata = gamebook.metadata)
         Button(onClick = onPlay, modifier = Modifier.fillMaxWidth()) {
             Text(if (gamebook.hasPlaythroughInProgress) "Resume" else "Play")
+        }
+        TextButton(onClick = onDelete, modifier = Modifier.fillMaxWidth()) {
+            Text("Delete from device")
         }
     }
 }
@@ -415,10 +420,16 @@ private fun StoreGamebookDetail(
         DetailCopy(metadata = gamebook.metadata)
         Button(
             onClick = onDownload,
-            enabled = !gamebook.isDownloaded,
+            enabled = !gamebook.isDownloaded || gamebook.updateAvailable,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(if (gamebook.isDownloaded) "Downloaded" else "Download for offline play")
+            Text(gamebook.storeActionText())
+        }
+        if (gamebook.isDownloaded) {
+            Text(
+                text = "Installed: ${gamebook.localVersion}",
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
     }
 }
@@ -559,4 +570,20 @@ private fun GamebookMetadata.matches(query: String): Boolean {
         author.contains(normalized, ignoreCase = true) ||
         genre.contains(normalized, ignoreCase = true) ||
         description.contains(normalized, ignoreCase = true)
+}
+
+private fun StoreGamebook.storeStatusText(): String {
+    return when {
+        updateAvailable -> "Update available"
+        isDownloaded -> "Downloaded"
+        else -> "Available"
+    }
+}
+
+private fun StoreGamebook.storeActionText(): String {
+    return when {
+        updateAvailable -> "Update downloaded copy"
+        isDownloaded -> "Downloaded"
+        else -> "Download for offline play"
+    }
 }

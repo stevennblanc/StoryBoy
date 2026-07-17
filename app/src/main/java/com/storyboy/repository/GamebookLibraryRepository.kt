@@ -30,7 +30,18 @@ class GamebookLibraryRepository(context: Context) {
         progressPrefs.edit().putBoolean(startedKey(gamebookId), true).apply()
     }
 
+    fun deleteLocalGamebook(gamebook: LocalGamebook) {
+        storage.deleteGamebook(gamebook.metadata.id)
+        progressPrefs.edit()
+            .remove(currentNodeKey(gamebook.metadata.id))
+            .remove(startedKey(gamebook.metadata.id))
+            .remove(evidenceKey(gamebook.metadata.id))
+            .apply()
+    }
+
     private fun currentNodeKey(gamebookId: String): String = "current_node_$gamebookId"
 
     private fun startedKey(gamebookId: String): String = "started_$gamebookId"
+
+    private fun evidenceKey(gamebookId: String): String = "evidence_$gamebookId"
 }

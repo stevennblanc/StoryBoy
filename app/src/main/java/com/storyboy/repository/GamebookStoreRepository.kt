@@ -12,11 +12,16 @@ class GamebookStoreRepository(context: Context) {
     private val storage = GamebookStorage(context.applicationContext)
 
     fun listStoreGamebooks(): List<StoreGamebook> {
-        val localIds = storage.listGamebookFiles()
-            .mapNotNull { file -> runCatching { storage.readMetadata(file).id }.getOrNull() }
-            .toSet()
+        val localVersions = storage.listGamebookFiles()
+            .mapNotNull { file ->
+                runCatching {
+                    val metadata = storage.readMetadata(file)
+                    metadata.id to metadata.version
+                }.getOrNull()
+            }
+            .toMap()
         val json = getText(AppConfig.StoreIndexUrl)
-        return StoreIndexParser.parse(json, localIds)
+        return StoreIndexParser.parse(json, localVersions)
     }
 
     fun download(storeGamebook: StoreGamebook) {

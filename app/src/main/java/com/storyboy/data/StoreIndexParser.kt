@@ -5,7 +5,7 @@ import com.storyboy.models.StoreGamebook
 import org.json.JSONObject
 
 object StoreIndexParser {
-    fun parse(json: String, downloadedIds: Set<String>): List<StoreGamebook> {
+    fun parse(json: String, localVersions: Map<String, String>): List<StoreGamebook> {
         val source = JSONObject(json)
         val entries = source.optJSONArray("gamebooks") ?: return emptyList()
 
@@ -25,7 +25,9 @@ object StoreIndexParser {
                     StoreGamebook(
                         metadata = metadata,
                         downloadUrl = item.getString("downloadUrl"),
-                        isDownloaded = metadata.id in downloadedIds,
+                        isDownloaded = metadata.id in localVersions,
+                        localVersion = localVersions[metadata.id],
+                        updateAvailable = localVersions[metadata.id]?.let { it != metadata.version } ?: false,
                     ),
                 )
             }

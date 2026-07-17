@@ -14,6 +14,8 @@ The Android app stores downloaded gamebooks in its app-specific internal storage
 
 This keeps adventures available offline without requesting broad storage permissions.
 
+Downloaded gamebooks can be deleted from the Library detail page. Store entries compare their online `version` against the installed package version and offer an update when they differ.
+
 ## Minimum Package Shape
 
 ```text

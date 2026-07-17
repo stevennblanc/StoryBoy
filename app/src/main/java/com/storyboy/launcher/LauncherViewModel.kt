@@ -121,6 +121,26 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun deleteLocalGamebook(localGamebook: LocalGamebook) {
+        mutableState.update { it.copy(isLoadingLibrary = true, message = null) }
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                libraryRepository.deleteLocalGamebook(localGamebook)
+            }
+            mutableState.update {
+                it.copy(
+                    selectedLocalGamebook = null,
+                    isLoadingLibrary = false,
+                    message = "${localGamebook.metadata.title} was removed from this device.",
+                )
+            }
+            refreshLibrary()
+            if (mutableState.value.store.isNotEmpty()) {
+                refreshStore()
+            }
+        }
+    }
+
     fun markStarted(localGamebook: LocalGamebook) {
         libraryRepository.markPlaythroughStarted(localGamebook.metadata.id)
         refreshLibrary()
