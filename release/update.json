@@ -1,6 +1,6 @@
 {
-  "versionCode": 20,
-  "versionName": "0.19.0",
+  "versionCode": 21,
+  "versionName": "0.20.0",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "Full-page themed store detail with author, stats, and about sections; Supabase accounts with sign-in, profile, and cross-device library."
+  "releaseNotes": "StoryBoy is now built with Flutter: redesigned store and reader, Supabase account and cross-device library, and the same in-app update channel."
 }
