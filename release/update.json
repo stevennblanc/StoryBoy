@@ -1,6 +1,6 @@
 {
-  "versionCode": 17,
-  "versionName": "0.17.0",
+  "versionCode": 18,
+  "versionName": "0.18.0",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "Adds motion mode settings and a presentation standard for Android and e-ink parity."
+  "releaseNotes": "Adds the Vercel-backed store, Supabase store backend work, and updated web preview support."
 }
