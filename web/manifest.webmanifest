@@ -1,0 +1,17 @@
+{
+  "name": "StoryBoy",
+  "short_name": "StoryBoy",
+  "description": "A lightweight reader for interactive gamebooks.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "icons": [
+    {
+      "src": "/assets/storyboy-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
