@@ -2,6 +2,14 @@
 
 StoryBoy is structured as a lightweight storybook platform rather than a single-purpose Android app.
 
+As of 2026-07-19 the platform has three clients sharing one backend and one gamebook format:
+
+- `app/` — the Kotlin/Compose Android app (currently shipped; feature-frozen except fixes)
+- `flutter_app/` — the Flutter client, which becomes the primary phone app (see `FLUTTER_APP.md`)
+- `web/` — the static web reader and store host (also the e-ink-faithful reference)
+
+Shared contracts: the `.gbk` format (`GAMEBOOK_FORMAT.md`), the Supabase store backend (`STORE_BACKEND.md`), and the presentation standard (`PRESENTATION_MODE_STANDARD.md`).
+
 ## Current Foundation
 
 - `com.storyboy.MainActivity` is the boot entry point only.
