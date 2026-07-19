@@ -40,6 +40,14 @@ These categories help authors structure books. They do not require separate engi
 | Climax | Final confrontation |
 | Ending | Story resolution |
 
+## Collection Systems
+
+StoryBoy has two built-in collection systems: inventory and evidence. They are engine systems, but their presentation belongs to the book.
+
+A book may rename either system with a top-level `collections` block. "Evidence" is only the default detective-flavored label; a travel comedy can present the same system as `Memories`, a ghost story as `Visions`, a family saga as `Photographs`. Books may also hide the collected count (`show_count`) or disable a system outright (`enabled`).
+
+When a book defines no evidence and never grants any, the reader hides the evidence button entirely. The same applies to inventory. Authors opt in by using the system, not by configuring it.
+
 ## Evidence System
 
 Evidence is a first-class story system for investigative adventures.
@@ -53,7 +61,13 @@ Example uses:
 - require the master tape before a true ending
 - ask the player which evidence proves an accusation
 
-Genres that do not need evidence can ignore the system entirely.
+Genres that do not need evidence can ignore the system entirely, or relabel it through `collections`.
+
+## Reviewable Items
+
+Collected items should be reviewable, not just countable. If a clue carries a number, a code, a map, or an image, attach it to the catalog entry with `detail` and `image` so the player can open the item later and read the actual information.
+
+Design rule: any fact the player is expected to recall at a puzzle or deduction should exist on a collectible item's `detail`, not only in prose the player may have scrolled past.
 
 ## Artwork Standards
 

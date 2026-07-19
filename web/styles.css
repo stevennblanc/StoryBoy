@@ -313,6 +313,21 @@ h3 {
   font-size: 13px;
 }
 
+.collection-item {
+  display: grid;
+  gap: 10px;
+}
+
+.collection-item summary {
+  cursor: pointer;
+  list-style-position: outside;
+}
+
+.collection-item[open] summary {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+}
+
 .puzzle-form {
   display: grid;
   gap: 10px;

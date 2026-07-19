@@ -44,10 +44,17 @@ Artwork rules:
     "cover_image": "poster.png",
     "title_image": "banner.png"
   },
+  "collections": {
+    "evidence": {
+      "label": "Evidence"
+    }
+  },
   "evidence": [],
   "nodes": []
 }
 ```
+
+`collections` is optional. See the Collections section below.
 
 ## Required Metadata
 
@@ -313,6 +320,56 @@ Battle nodes can also use a nested object if that is clearer:
 ```
 
 Every battle target must point to an existing node. Every `item_modifiers[].item` or `item_id` should match an inventory item id.
+
+## Collections
+
+StoryBoy has two built-in collection systems: inventory and evidence. A book can rename either one, hide its count, or disable it with an optional top-level `collections` block:
+
+```json
+{
+  "collections": {
+    "inventory": {
+      "label": "Souvenirs",
+      "show_count": false
+    },
+    "evidence": {
+      "label": "Memories"
+    }
+  }
+}
+```
+
+Rules:
+
+- `label` renames the reader button and panel. Defaults: `Items` and `Evidence`.
+- `show_count` defaults to `true`; set `false` to show the label without a number.
+- `enabled` defaults to automatic: a collection appears only if the book defines or grants entries in it. Set `false` to force-hide it.
+- Pick a label that matches the story. Evidence can become `Memories`, `Photographs`, `Visions`, `Clues`, or anything else; the engine behavior is unchanged.
+- When labels are customized, avoid repeating the label in every item title. Under a `Memories` panel, use `The Last School Bell`, not `Memory: The Last School Bell`.
+
+## Reviewable Item Details
+
+Catalog entries in both `inventory` and `evidence` support optional `detail` and `image` fields:
+
+```json
+{
+  "inventory": [
+    {
+      "id": "baggage_receipt",
+      "title": "Baggage Receipt",
+      "description": "The printed claim receipt for the suitcase.",
+      "detail": "Printed claim: TAG 782461 - OWNER: A. RAMSINGH. The last four digits are 2461.",
+      "image": "images/baggage_receipt.png"
+    }
+  ]
+}
+```
+
+- `description` is the short line always shown in the collection panel.
+- `detail` is the full reviewable content, revealed when the player selects the item.
+- `image` is an optional package path shown alongside the detail.
+
+Authoring rule: if the player is expected to remember a code, number, name, or direction for a later puzzle, put that fact in the granting item's `detail` so it can be reviewed at any time. Do not leave recall-critical information only in scene prose.
 
 ## Evidence System
 
@@ -592,6 +649,9 @@ Before packaging:
 - Every evidence id is stable and lowercase snake_case
 - Every inventory id is stable and lowercase snake_case
 - Every node image path exists inside the `.gbk`
+- Every catalog item `image` path exists inside the `.gbk`
+- Recall-critical codes, numbers, and directions appear in an item's `detail`
+- Custom collection labels read naturally and item titles do not repeat the label
 - Package contains `story.json`
 - Package contains `poster.png`
 - Package contains `banner.png`

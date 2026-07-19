@@ -229,17 +229,22 @@ function renderReader() {
 
   applyNodeGains(node, gamebook);
   const imageHtml = renderNodeImages(node, gamebook);
-  const inventoryPanel = renderGainPanel("Items", state.inventory);
-  const evidencePanel = renderGainPanel("Evidence", state.evidence);
+  const inventoryPanel = gamebook.inventoryConfig.enabled
+    ? renderGainPanel(gamebook.inventoryConfig.label, state.inventory, gamebook)
+    : "";
+  const evidencePanel = gamebook.evidenceConfig.enabled
+    ? renderGainPanel(gamebook.evidenceConfig.label, state.evidence, gamebook)
+    : "";
   const bodyHtml = renderNodeBody(node, gamebook);
   const choiceHtml = renderNodeActions(node);
+  const chips = [
+    gamebook.inventoryConfig.enabled ? renderCollectionChip(gamebook.inventoryConfig, state.inventory.length) : "",
+    gamebook.evidenceConfig.enabled ? renderCollectionChip(gamebook.evidenceConfig, state.evidence.length) : "",
+  ].join("");
 
   app.innerHTML = `
     <article class="reader">
-      <div class="chip-row">
-        <span class="chip">Items ${state.inventory.length}</span>
-        <span class="chip">Evidence ${state.evidence.length}</span>
-      </div>
+      ${chips ? `<div class="chip-row">${chips}</div>` : ""}
       ${imageHtml}
       ${bodyHtml}
       ${inventoryPanel}
@@ -309,12 +314,32 @@ function renderNodeBody(node) {
   `;
 }
 
-function renderGainPanel(label, items) {
+function renderCollectionChip(config, count) {
+  const text = config.showCount ? `${config.label} ${count}` : config.label;
+  return `<span class="chip">${escapeHtml(text)}</span>`;
+}
+
+function renderGainPanel(label, items, gamebook) {
   if (!items.length) return "";
+  const rows = items.map((item) => {
+    const summary = `<strong>${escapeHtml(item.title || item.id)}</strong>${item.description ? `<br><span class="muted">${escapeHtml(item.description)}</span>` : ""}`;
+    const imageSrc = item.image ? gamebook.imageUrls.get(item.image) : null;
+    const detail = item.detail || "";
+    if (!imageSrc && !detail) {
+      return `<p>${summary}</p>`;
+    }
+    return `
+      <details class="collection-item">
+        <summary>${summary}</summary>
+        ${imageSrc ? `<img class="reader-image" src="${escapeAttribute(imageSrc)}" alt="">` : ""}
+        ${detail ? `<p class="reader-text">${escapeHtml(detail)}</p>` : ""}
+      </details>
+    `;
+  }).join("");
   return `
     <section class="panel">
-      <h3>${label}</h3>
-      ${items.map((item) => `<p><strong>${escapeHtml(item.title || item.id)}</strong><br><span class="muted">${escapeHtml(item.description || "")}</span></p>`).join("")}
+      <h3>${escapeHtml(label)}</h3>
+      ${rows}
     </section>
   `;
 }
@@ -464,12 +489,33 @@ async function loadGamebookPackage(url) {
     }
   }
 
+  const nodes = Array.isArray(story.nodes) ? story.nodes : [];
+  const inventoryCatalog = catalogMap(story.inventory);
+  const evidenceCatalog = catalogMap(story.evidence);
+  const hasInventory = inventoryCatalog.size > 0
+    || nodes.some((node) => node.items || node.inventory || node.gain_inventory || node.gains_inventory);
+  const hasEvidence = evidenceCatalog.size > 0
+    || nodes.some((node) => node.evidence || node.gain_evidence || node.gains_evidence);
+  const collections = story.collections || {};
+
   return {
     metadata: story.metadata || {},
-    nodes: new Map((story.nodes || []).map((node) => [node.id, node])),
-    inventory: catalogMap(story.inventory),
-    evidence: catalogMap(story.evidence),
+    nodes: new Map(nodes.map((node) => [node.id, node])),
+    inventory: inventoryCatalog,
+    evidence: evidenceCatalog,
+    inventoryConfig: normalizeCollectionConfig(collections.inventory || collections.items, "Items", hasInventory),
+    evidenceConfig: normalizeCollectionConfig(collections.evidence, "Evidence", hasEvidence),
     imageUrls,
+  };
+}
+
+function normalizeCollectionConfig(raw, defaultLabel, hasEntries) {
+  const config = raw && typeof raw === "object" ? raw : {};
+  const enabled = config.enabled ?? config.include ?? hasEntries;
+  return {
+    label: String(config.label || config.title || config.name || defaultLabel),
+    showCount: Boolean(config.show_count ?? config.showCount ?? true),
+    enabled: Boolean(enabled),
   };
 }
 

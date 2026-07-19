@@ -90,6 +90,53 @@ StoryBoy rejects files that:
 - do not contain a non-empty `nodes` array
 - reference a `metadata.start_node` that is missing from `nodes`
 
+## Collections
+
+StoryBoy has two built-in collection systems: inventory and evidence. Both are optional, and a book can rename them to fit its genre with a top-level `collections` block.
+
+```json
+{
+  "collections": {
+    "inventory": {
+      "label": "Souvenirs",
+      "show_count": false
+    },
+    "evidence": {
+      "label": "Memories"
+    }
+  }
+}
+```
+
+Rules:
+
+- `label` renames the reader button and panel. Defaults are `Items` and `Evidence`.
+- `show_count` hides the collected count on the reader button when `false`. Defaults to `true`.
+- `enabled` forces a collection on or off. When omitted, a collection is shown only if the book defines or grants anything in it, so books that never use evidence never show an evidence button.
+- `collections.items` is accepted as an alias for `collections.inventory`.
+
+Evidence does not have to mean detective proof. A travel book can call it `Memories`, a horror book `Visions`, a family story `Photographs`. The engine behavior is identical; only the wording changes.
+
+## Reviewing Collected Items
+
+Catalog entries in both `inventory` and `evidence` may include optional `detail` and `image` fields:
+
+```json
+{
+  "inventory": [
+    {
+      "id": "baggage_receipt",
+      "title": "Baggage Receipt",
+      "description": "The printed claim receipt for Anya's suitcase.",
+      "detail": "Printed claim: TAG 782461 - OWNER: A. RAMSINGH. The last four digits are 2461.",
+      "image": "images/baggage_receipt.png"
+    }
+  ]
+}
+```
+
+The reader shows `title` and `description` in the collection panel. Selecting an entry reveals its `image` and `detail` so the player can review the actual contents of a clue — a code, a map, a phone number — instead of only knowing they collected it. `image` must be a path inside the `.gbk` package.
+
 ## Evidence
 
 Evidence is optional. A book may define a top-level `evidence` catalog and grant evidence from any node.

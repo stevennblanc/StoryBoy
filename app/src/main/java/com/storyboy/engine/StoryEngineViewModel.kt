@@ -122,10 +122,23 @@ class StoryEngineViewModel(application: Application) : AndroidViewModel(applicat
                     ) ?: image.path,
                 )
             },
-            collectedEvidence = collectedIds.mapNotNull { gamebook.evidenceCatalog[it] },
-            collectedInventory = inventoryIds.mapNotNull { gamebook.inventoryCatalog[it] },
+            collectedEvidence = collectedIds.mapNotNull { gamebook.evidenceCatalog[it] }.map { item ->
+                item.copy(image = resolveItemImage(gamebook, item.image))
+            },
+            collectedInventory = inventoryIds.mapNotNull { gamebook.inventoryCatalog[it] }.map { item ->
+                item.copy(image = resolveItemImage(gamebook, item.image))
+            },
             currentBattleResult = null,
         )
+    }
+
+    private fun resolveItemImage(gamebook: StoryGamebook, imagePath: String?): String? {
+        if (imagePath == null) return null
+        return repository.extractStoryAsset(
+            gamebookPath = currentGamebookPath,
+            gamebookId = gamebook.metadata.id,
+            assetPath = imagePath,
+        ) ?: imagePath
     }
 
     private fun rollDice(expression: String, bonus: Int): BattleRoll {

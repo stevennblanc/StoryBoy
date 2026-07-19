@@ -10,3 +10,4 @@ captures/
 app/build/
 gamebooks/
 .vercel-tools/
+supabase/.temp/

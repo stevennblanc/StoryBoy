@@ -61,6 +61,12 @@ vercel deploy web --prod
 
 ## Store Index
 
-`web/store/store-index.json` should mirror the public store index.
+`web/store/store-index.json` mirrors the public store index, but uses same-origin paths for `downloadUrl`, `posterUrl`, and `bannerUrl`:
 
-For production testing, keep `downloadUrl`, `posterUrl`, and `bannerUrl` pointed at the same hosted assets used by Android.
+```json
+"downloadUrl": "/store/anya-suitcase-scenic-route.gbk"
+```
+
+Because Vercel serves `web/` as the site root, these paths resolve to the hosted assets in production and to the local copies during `python -m http.server` testing. This means local preview always tests the packages in the working tree instead of silently downloading the last deployed versions.
+
+The root `store/store-index.json` used by Android keeps absolute URLs.

@@ -7,20 +7,21 @@
       "genre": "Detective Noir",
       "version": "0.3.0-test",
       "description": "A complete 1990s noir test adventure featuring former police detective Nathan Reed.",
-      "downloadUrl": "https://storyboy.vercel.app/store/the-long-shadow.gbk",
-      "posterUrl": "https://storyboy.vercel.app/store/the-long-shadow-poster.png",
-      "bannerUrl": "https://storyboy.vercel.app/store/the-long-shadow-banner.png"
+      "downloadUrl": "/store/the-long-shadow.gbk",
+      "posterUrl": "/store/the-long-shadow-poster.png",
+      "bannerUrl": "/store/the-long-shadow-banner.png"
     },
     {
       "id": "anya_suitcase_scenic_route",
       "title": "Anya and the Suitcase That Took the Scenic Route",
       "author": "Steven Blanc",
       "genre": "Contemporary Travel Comedy",
-      "version": "0.2.0-art",
+      "version": "0.3.0",
       "description": "Anya's carefully packed suitcase begins a holiday of its own, sending her and Steven through luggage depots, accidental tours, a celebrity mix-up, and a hidden island festival where the best souvenirs are the stories collected along the way.",
-      "downloadUrl": "https://storyboy.vercel.app/store/anya-suitcase-scenic-route.gbk",
-      "posterUrl": "https://storyboy.vercel.app/store/anya-suitcase-scenic-route-poster.png",
-      "bannerUrl": "https://storyboy.vercel.app/store/anya-suitcase-scenic-route-banner.png"
+      "downloadUrl": "/store/anya-suitcase-scenic-route.gbk",
+      "posterUrl": "/store/anya-suitcase-scenic-route-poster.png",
+      "bannerUrl": "/store/anya-suitcase-scenic-route-banner.png"
     }
   ]
 }
+

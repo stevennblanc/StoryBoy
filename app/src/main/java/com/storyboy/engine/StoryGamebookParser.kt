@@ -19,12 +19,46 @@ object StoryGamebookParser {
         nodes.validateTargets()
         val evidenceCatalog = parseEvidenceCatalog(source, nodes)
         val inventoryCatalog = parseInventoryCatalog(source, nodes)
+        val collectionsJson = source.optJSONObject("collections")
 
         return StoryGamebook(
             metadata = metadata,
             nodes = nodes,
             evidenceCatalog = evidenceCatalog,
             inventoryCatalog = inventoryCatalog,
+            inventoryConfig = parseCollectionConfig(
+                configJson = collectionsJson?.optJSONObject("inventory")
+                    ?: collectionsJson?.optJSONObject("items"),
+                defaultLabel = CollectionConfig.DefaultInventoryLabel,
+                hasEntries = inventoryCatalog.isNotEmpty(),
+            ),
+            evidenceConfig = parseCollectionConfig(
+                configJson = collectionsJson?.optJSONObject("evidence"),
+                defaultLabel = CollectionConfig.DefaultEvidenceLabel,
+                hasEntries = evidenceCatalog.isNotEmpty(),
+            ),
+        )
+    }
+
+    private fun parseCollectionConfig(
+        configJson: JSONObject?,
+        defaultLabel: String,
+        hasEntries: Boolean,
+    ): CollectionConfig {
+        val enabled = when {
+            configJson != null && configJson.has("enabled") -> configJson.optBoolean("enabled", hasEntries)
+            configJson != null && configJson.has("include") -> configJson.optBoolean("include", hasEntries)
+            else -> hasEntries
+        }
+        return CollectionConfig(
+            label = configJson?.optAnyString("label", "title", "name")?.ifBlank { defaultLabel } ?: defaultLabel,
+            showCount = when {
+                configJson == null -> true
+                configJson.has("show_count") -> configJson.optBoolean("show_count", true)
+                configJson.has("showCount") -> configJson.optBoolean("showCount", true)
+                else -> true
+            },
+            enabled = enabled,
         )
     }
 
@@ -301,7 +335,7 @@ object StoryGamebookParser {
         }
         nodes.values
             .flatMap { it.evidenceGained }
-            .forEach { item -> catalog[item.id] = item }
+            .forEach { item -> if (item.id !in catalog) catalog[item.id] = item }
         return catalog
     }
 
@@ -319,7 +353,7 @@ object StoryGamebookParser {
         }
         nodes.values
             .flatMap { it.inventoryGained }
-            .forEach { item -> catalog[item.id] = item }
+            .forEach { item -> if (item.id !in catalog) catalog[item.id] = item }
         return catalog
     }
 
@@ -455,6 +489,8 @@ private fun JSONArray.getEvidenceItem(index: Int): EvidenceItem {
             id = id,
             title = rawItem.optString("title", id.toEvidenceTitle()),
             description = rawItem.optString("description"),
+            detail = rawItem.optString("detail"),
+            image = rawItem.optString("image").ifBlank { null },
         )
     } else {
         val id = rawItem.toString()
@@ -474,6 +510,8 @@ private fun JSONArray.getInventoryItem(index: Int): InventoryItem {
             id = id,
             title = rawItem.optString("title", id.toDisplayTitle()),
             description = rawItem.optString("description"),
+            detail = rawItem.optString("detail"),
+            image = rawItem.optString("image").ifBlank { null },
         )
     } else {
         val id = rawItem.toString()

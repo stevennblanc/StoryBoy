@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +44,7 @@ import com.storyboy.core.ThemeManager
 import com.storyboy.core.UiConfig
 import com.storyboy.engine.BattleConfig
 import com.storyboy.engine.BattleOutcome
+import com.storyboy.engine.CollectionConfig
 import com.storyboy.engine.BattleResult
 import com.storyboy.engine.EvidenceItem
 import com.storyboy.engine.InventoryItem
@@ -135,6 +137,8 @@ private fun ReaderContent(
     ) {
         ReaderTopBar(
             title = gamebook.metadata.title,
+            evidenceConfig = gamebook.evidenceConfig,
+            inventoryConfig = gamebook.inventoryConfig,
             evidenceCount = state.collectedEvidence.size,
             inventoryCount = state.collectedInventory.size,
             onBack = onBack,
@@ -150,12 +154,18 @@ private fun ReaderContent(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
         ) {
-            if (showEvidence) {
-                EvidenceBoard(evidence = state.collectedEvidence)
+            if (showEvidence && gamebook.evidenceConfig.enabled) {
+                EvidenceBoard(
+                    title = gamebook.evidenceConfig.label,
+                    evidence = state.collectedEvidence,
+                )
             }
 
-            if (showInventory) {
-                InventoryPanel(inventory = state.collectedInventory)
+            if (showInventory && gamebook.inventoryConfig.enabled) {
+                InventoryPanel(
+                    title = gamebook.inventoryConfig.label,
+                    inventory = state.collectedInventory,
+                )
             }
 
             state.currentNodeImages.forEach { image ->
@@ -370,6 +380,8 @@ private fun PuzzleInput(
 @Composable
 private fun ReaderTopBar(
     title: String,
+    evidenceConfig: CollectionConfig,
+    inventoryConfig: CollectionConfig,
     evidenceCount: Int,
     inventoryCount: Int,
     onBack: () -> Unit,
@@ -397,35 +409,119 @@ private fun ReaderTopBar(
                 Text("Restart", maxLines = 1)
             }
         }
+        if (inventoryConfig.enabled || evidenceConfig.enabled) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (inventoryConfig.enabled) {
+                    TextButton(onClick = onInventory, enabled = inventoryCount > 0) {
+                        Text(inventoryConfig.buttonLabel(inventoryCount), maxLines = 1)
+                    }
+                }
+                if (evidenceConfig.enabled) {
+                    TextButton(onClick = onEvidence, enabled = evidenceCount > 0) {
+                        Text(evidenceConfig.buttonLabel(evidenceCount), maxLines = 1)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun CollectionConfig.buttonLabel(count: Int): String {
+    return if (showCount) "$label $count" else label
+}
+
+@Composable
+private fun InventoryPanel(
+    title: String,
+    inventory: List<InventoryItem>,
+) {
+    var expandedId by remember { mutableStateOf<String?>(null) }
+    ReaderCollectionPanel(title = title) {
+        inventory.forEach { item ->
+            ExpandableCollectionItem(
+                title = item.title,
+                description = item.description,
+                detail = item.detail,
+                imagePath = item.image,
+                expanded = expandedId == item.id,
+                onToggle = { expandedId = if (expandedId == item.id) null else item.id },
+            )
+        }
+    }
+}
+
+@Composable
+private fun EvidenceBoard(
+    title: String,
+    evidence: List<EvidenceItem>,
+) {
+    var expandedId by remember { mutableStateOf<String?>(null) }
+    ReaderCollectionPanel(title = title) {
+        evidence.forEach { item ->
+            ExpandableCollectionItem(
+                title = item.title,
+                description = item.description,
+                detail = item.detail,
+                imagePath = item.image,
+                expanded = expandedId == item.id,
+                onToggle = { expandedId = if (expandedId == item.id) null else item.id },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExpandableCollectionItem(
+    title: String,
+    description: String,
+    detail: String,
+    imagePath: String?,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+) {
+    val hasMore = detail.isNotBlank() || imagePath != null
+
+    Column(
+        modifier = if (hasMore) Modifier.fillMaxWidth().clickable(onClick = onToggle) else Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onInventory, enabled = inventoryCount > 0) {
-                Text("Items $inventoryCount", maxLines = 1)
-            }
-            TextButton(onClick = onEvidence, enabled = evidenceCount > 0) {
-                Text("Evidence $evidenceCount", maxLines = 1)
+            Text(
+                text = title,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.labelLarge.copy(color = ThemeManager.colors.ReaderText),
+            )
+            if (hasMore) {
+                Text(
+                    text = if (expanded) "Close" else "View",
+                    style = MaterialTheme.typography.labelLarge.copy(color = ThemeManager.colors.ReaderMutedText),
+                )
             }
         }
-    }
-}
-
-@Composable
-private fun InventoryPanel(inventory: List<InventoryItem>) {
-    ReaderCollectionPanel(title = "Inventory") {
-        inventory.forEach { item ->
-            CollectionItem(title = item.title, description = item.description)
+        if (description.isNotBlank()) {
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium.copy(color = ThemeManager.colors.ReaderMutedText),
+            )
         }
-    }
-}
-
-@Composable
-private fun EvidenceBoard(evidence: List<EvidenceItem>) {
-    ReaderCollectionPanel(title = "Evidence Board") {
-        evidence.forEach { item ->
-            CollectionItem(title = item.title, description = item.description)
+        if (expanded && hasMore) {
+            if (imagePath != null) {
+                StoryInlineImage(image = StoryImage(path = imagePath, caption = ""))
+            }
+            if (detail.isNotBlank()) {
+                Text(
+                    text = detail,
+                    style = MaterialTheme.typography.bodyMedium.copy(color = ThemeManager.colors.ReaderText),
+                )
+            }
         }
     }
 }
