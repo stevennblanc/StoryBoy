@@ -3,10 +3,12 @@ package com.storyboy.launcher
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.storyboy.data.SupabaseAuthRepository
 import com.storyboy.models.LocalGamebook
 import com.storyboy.models.StoreGamebook
 import com.storyboy.repository.GamebookLibraryRepository
 import com.storyboy.repository.GamebookStoreRepository
+import com.storyboy.repository.StoreCatalogueRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +20,8 @@ import kotlinx.coroutines.withContext
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
     private val libraryRepository = GamebookLibraryRepository(application)
     private val storeRepository = GamebookStoreRepository(application)
+    private val catalogueRepository = StoreCatalogueRepository()
+    private val authRepository = SupabaseAuthRepository(application)
     private val mutableState = MutableStateFlow(LauncherState())
 
     val state: StateFlow<LauncherState> = mutableState.asStateFlow()
@@ -106,6 +110,50 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         isLoadingStore = false,
                         message = throwable.message ?: "Store is unavailable",
                     )
+                }
+            }
+            refreshCatalogue()
+        }
+    }
+
+    private suspend fun refreshCatalogue() {
+        val catalogue = runCatching {
+            withContext(Dispatchers.IO) { catalogueRepository.fetchCatalogue() }
+        }.getOrDefault(emptyMap())
+        val ownership = runCatching {
+            withContext(Dispatchers.IO) {
+                val token = authRepository.validAccessToken()
+                if (token == null) {
+                    false to emptySet()
+                } else {
+                    true to catalogueRepository.fetchOwnedBookIds(token)
+                }
+            }
+        }.getOrDefault(false to emptySet<String>())
+        mutableState.update {
+            it.copy(
+                catalogue = catalogue.ifEmpty { it.catalogue },
+                isSignedIn = ownership.first,
+                ownedBookIds = ownership.second,
+            )
+        }
+    }
+
+    fun acquireBook(storeGamebook: StoreGamebook) {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val token = authRepository.validAccessToken() ?: error("Sign in from Settings first.")
+                    val session = authRepository.currentSession() ?: error("Sign in from Settings first.")
+                    catalogueRepository.acquireBook(token, session.userId, storeGamebook.metadata.id)
+                }
+            }.onSuccess {
+                mutableState.update {
+                    it.copy(ownedBookIds = it.ownedBookIds + storeGamebook.metadata.id)
+                }
+            }.onFailure { throwable ->
+                mutableState.update {
+                    it.copy(message = throwable.message ?: "Could not add this book to your library.")
                 }
             }
         }

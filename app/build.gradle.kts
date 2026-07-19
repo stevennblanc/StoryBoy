@@ -12,8 +12,8 @@ android {
         applicationId = "com.storyboy"
         minSdk = 31
         targetSdk = 35
-        versionCode = 19
-        versionName = "0.18.1"
+        versionCode = 20
+        versionName = "0.19.0"
         buildConfigField(
             "String",
             "UPDATE_MANIFEST_URL",

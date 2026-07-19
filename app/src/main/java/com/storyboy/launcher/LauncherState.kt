@@ -1,5 +1,6 @@
 package com.storyboy.launcher
 
+import com.storyboy.models.CatalogueBook
 import com.storyboy.models.LocalGamebook
 import com.storyboy.models.StoreGamebook
 
@@ -14,6 +15,9 @@ data class LauncherState(
     val selectedStoreGamebook: StoreGamebook? = null,
     val library: List<LocalGamebook> = emptyList(),
     val store: List<StoreGamebook> = emptyList(),
+    val catalogue: Map<String, CatalogueBook> = emptyMap(),
+    val ownedBookIds: Set<String> = emptySet(),
+    val isSignedIn: Boolean = false,
     val isLoadingLibrary: Boolean = false,
     val isLoadingStore: Boolean = false,
     val message: String? = null,

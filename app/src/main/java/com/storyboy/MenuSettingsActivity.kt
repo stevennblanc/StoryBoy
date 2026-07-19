@@ -34,13 +34,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.storyboy.account.AccountState
+import com.storyboy.account.AccountViewModel
 import com.storyboy.core.AppearanceMode
 import com.storyboy.core.AppearanceSettingsRepository
 import com.storyboy.core.MotionMode
 import com.storyboy.core.ThemeManager
 import com.storyboy.core.UiConfig
-import com.storyboy.core.UserProfile
-import com.storyboy.core.UserProfileRepository
 import com.storyboy.core.rememberAppearanceSettings
 import com.storyboy.updater.UpdateStatus
 import com.storyboy.updater.UpdateViewModel
@@ -48,6 +49,7 @@ import kotlin.math.roundToInt
 
 class MenuSettingsActivity : ComponentActivity() {
     private val updateViewModel: UpdateViewModel by viewModels()
+    private val accountViewModel: AccountViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,8 +57,11 @@ class MenuSettingsActivity : ComponentActivity() {
         setContent {
             ThemeManager.StoryBoyTheme {
                 val updateStatus by updateViewModel.status.collectAsState()
+                val accountState by accountViewModel.state.collectAsState()
                 SettingsScreen(
                     updateStatus = updateStatus,
+                    accountState = accountState,
+                    accountViewModel = accountViewModel,
                     onBack = ::finish,
                     onCheckUpdate = updateViewModel::checkForUpdates,
                     onDownloadUpdate = updateViewModel::downloadAndInstall,
@@ -70,6 +75,8 @@ class MenuSettingsActivity : ComponentActivity() {
 @Composable
 private fun SettingsScreen(
     updateStatus: UpdateStatus,
+    accountState: AccountState,
+    accountViewModel: AccountViewModel,
     onBack: () -> Unit,
     onCheckUpdate: () -> Unit,
     onDownloadUpdate: () -> Unit,
@@ -77,14 +84,8 @@ private fun SettingsScreen(
 ) {
     val context = LocalContext.current.applicationContext
     val appearanceRepository = remember(context) { AppearanceSettingsRepository(context) }
-    val profileRepository = remember(context) { UserProfileRepository(context) }
     val settings by rememberAppearanceSettings()
     val colors = ThemeManager.colors
-    val initialProfile = remember { profileRepository.load() }
-    var displayName by remember { mutableStateOf(initialProfile.displayName) }
-    var email by remember { mutableStateOf(initialProfile.email) }
-    var accountId by remember { mutableStateOf(initialProfile.accountId) }
-    var profileMessage by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -102,54 +103,14 @@ private fun SettingsScreen(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap)) {
                 Text(text = "Settings", style = MaterialTheme.typography.displayMedium)
-                Text(text = "Profile, appearance, updates", style = MaterialTheme.typography.bodyMedium)
+                Text(text = "Account, appearance, updates", style = MaterialTheme.typography.bodyMedium)
             }
             TextButton(onClick = onBack) {
                 Text("Library")
             }
         }
 
-        SettingPanel(title = "Profile") {
-            OutlinedTextField(
-                value = displayName,
-                onValueChange = { displayName = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                label = { Text("Display name") },
-            )
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                label = { Text("Email") },
-            )
-            OutlinedTextField(
-                value = accountId,
-                onValueChange = { accountId = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                label = { Text("Account id") },
-            )
-            Button(
-                onClick = {
-                    profileRepository.save(
-                        UserProfile(
-                            displayName = displayName,
-                            email = email,
-                            accountId = accountId,
-                        ),
-                    )
-                    profileMessage = "Profile saved on this device."
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Save profile")
-            }
-            if (profileMessage.isNotBlank()) {
-                Text(text = profileMessage, style = MaterialTheme.typography.bodyMedium)
-            }
-        }
+        AccountPanel(state = accountState, viewModel = accountViewModel)
 
         SettingPanel(title = "Appearance") {
             Row(
@@ -266,6 +227,104 @@ private fun SettingsScreen(
                 ),
             ) {
                 Text("Choice button preview")
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountPanel(
+    state: AccountState,
+    viewModel: AccountViewModel,
+) {
+    val session = state.session
+    if (session != null) {
+        var displayName by remember(session.userId) { mutableStateOf(session.displayName) }
+        SettingPanel(title = "Account") {
+            Text(text = session.email, style = MaterialTheme.typography.bodyLarge)
+            state.ownedBookCount?.let { count ->
+                Text(
+                    text = "$count book${if (count == 1) "" else "s"} in your StoryBoy library",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            OutlinedTextField(
+                value = displayName,
+                onValueChange = { displayName = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Display name") },
+            )
+            Button(
+                onClick = { viewModel.saveDisplayName(displayName) },
+                enabled = !state.isBusy && displayName.isNotBlank(),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Save profile")
+            }
+            if (state.message.isNotBlank()) {
+                Text(text = state.message, style = MaterialTheme.typography.bodyMedium)
+            }
+            TextButton(
+                onClick = viewModel::signOut,
+                enabled = !state.isBusy,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Sign out")
+            }
+        }
+    } else {
+        var email by remember { mutableStateOf("") }
+        var password by remember { mutableStateOf("") }
+        var displayName by remember { mutableStateOf("") }
+        SettingPanel(title = "Account") {
+            Text(
+                text = "Sign in to keep your StoryBoy library and profile across devices.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Email") },
+            )
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Password") },
+                visualTransformation = PasswordVisualTransformation(),
+            )
+            OutlinedTextField(
+                value = displayName,
+                onValueChange = { displayName = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Display name (new accounts)") },
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap),
+            ) {
+                Button(
+                    onClick = { viewModel.signIn(email, password) },
+                    enabled = !state.isBusy && email.isNotBlank() && password.isNotBlank(),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Sign in")
+                }
+                Button(
+                    onClick = { viewModel.signUp(email, password, displayName) },
+                    enabled = !state.isBusy && email.isNotBlank() && password.length >= 8,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Create account")
+                }
+            }
+            if (state.message.isNotBlank()) {
+                Text(text = state.message, style = MaterialTheme.typography.bodyMedium)
             }
         }
     }

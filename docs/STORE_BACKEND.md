@@ -47,7 +47,15 @@ Email + password via Supabase Auth. The web app's Account tab handles sign up / 
 
 ## Android
 
-The Android app reads `https://story-boy.vercel.app/store/store-index.json` (the same `web/store/store-index.json` file the web fallback uses) and resolves its relative URLs against that address. Migrating Android to the Supabase catalogue (and adding auth) is future work; keep the JSON updated when books change until then.
+The Android app reads `https://story-boy.vercel.app/store/store-index.json` (the same `web/store/store-index.json` file the web fallback uses) for package downloads and artwork, resolving its relative URLs against that address.
+
+As of 0.19.0 Android also talks to Supabase directly through a small REST layer (`data/SupabaseApi.kt`, no SDK dependency):
+
+- `StoreCatalogueRepository` reads the `books` table to enrich the full-page store detail (about, stats, features, price) and manages `purchases`
+- `SupabaseAuthRepository` implements email/password sign-up/sign-in with a persisted, self-refreshing session; the Settings "Account" panel edits the display name (auth metadata + `profiles` upsert — profiles has an insert policy because Android cannot send PATCH)
+- The catalogue is optional at runtime: if Supabase is unreachable the store still works from the JSON index with heuristic feature chips
+
+Longer term the app is expected to be rebuilt in Flutter (decision 2026-07-19): Flutter becomes the primary phone client, the static web stays as store host, and an e-ink build becomes a pared-down variant when hardware exists.
 
 ## Updating the catalogue
 

@@ -159,8 +159,9 @@ fun LauncherScreen(
         }
 
         state.selectedLocalGamebook?.let { gamebook ->
-            LocalGamebookDetail(
+            LocalBookDetailPage(
                 gamebook = gamebook,
+                catalogue = state.catalogue[gamebook.metadata.id],
                 onClose = launcherViewModel::closeDetail,
                 onDelete = { launcherViewModel.deleteLocalGamebook(gamebook) },
                 onPlay = {
@@ -172,10 +173,22 @@ fun LauncherScreen(
         }
 
         state.selectedStoreGamebook?.let { gamebook ->
-            StoreGamebookDetail(
+            val localCopy = state.library.firstOrNull { it.metadata.id == gamebook.metadata.id }
+            StoreBookDetailPage(
                 gamebook = gamebook,
+                catalogue = state.catalogue[gamebook.metadata.id],
+                owned = gamebook.metadata.id in state.ownedBookIds,
+                isSignedIn = state.isSignedIn,
                 onClose = launcherViewModel::closeDetail,
                 onDownload = { launcherViewModel.download(gamebook) },
+                onAcquire = { launcherViewModel.acquireBook(gamebook) },
+                onRead = localCopy?.let { local ->
+                    {
+                        launcherViewModel.markStarted(local)
+                        launcherViewModel.closeDetail()
+                        onOpenGamebook(local)
+                    }
+                },
             )
         }
     }
@@ -550,62 +563,8 @@ private fun StoreRow(
 }
 
 @Composable
-private fun LocalGamebookDetail(
-    gamebook: LocalGamebook,
-    onClose: () -> Unit,
-    onDelete: () -> Unit,
-    onPlay: () -> Unit,
-) {
-    DetailPanel(onClose = onClose) {
-        ArtworkFrame(
-            artworkPath = gamebook.posterPath,
-            displayMode = LibraryDisplayMode.Book,
-            modifier = Modifier.width(UiConfig.ImageSizes.GamePosterGridWidth),
-        )
-        DetailCopy(metadata = gamebook.metadata)
-        FeatureChips(features = gamebook.metadata.featureLabels())
-        Button(onClick = onPlay, modifier = Modifier.fillMaxWidth()) {
-            Text(if (gamebook.hasPlaythroughInProgress) "Resume" else "Play")
-        }
-        TextButton(onClick = onDelete, modifier = Modifier.fillMaxWidth()) {
-            Text("Delete from device")
-        }
-    }
-}
-
-@Composable
-private fun StoreGamebookDetail(
-    gamebook: StoreGamebook,
-    onClose: () -> Unit,
-    onDownload: () -> Unit,
-) {
-    DetailPanel(onClose = onClose) {
-        ArtworkFrame(
-            artworkPath = gamebook.posterPath,
-            displayMode = LibraryDisplayMode.Book,
-            modifier = Modifier.width(UiConfig.ImageSizes.GamePosterGridWidth),
-        )
-        DetailCopy(metadata = gamebook.metadata)
-        FeatureChips(features = gamebook.metadata.featureLabels())
-        Button(
-            onClick = onDownload,
-            enabled = !gamebook.isDownloaded || gamebook.updateAvailable,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(gamebook.storeActionText())
-        }
-        if (gamebook.isDownloaded) {
-            Text(
-                text = "Installed: ${gamebook.localVersion}",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
-    }
-}
-
-@Composable
 @OptIn(ExperimentalLayoutApi::class)
-private fun FeatureChips(features: List<String>) {
+internal fun FeatureChips(features: List<String>) {
     if (features.isEmpty()) return
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
@@ -628,48 +587,7 @@ private fun FeatureChips(features: List<String>) {
 }
 
 @Composable
-private fun DetailPanel(
-    onClose: () -> Unit,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    val colors = ThemeManager.colors
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.BackgroundCol)
-            .safeDrawingPadding(),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(UiConfig.Spacing.ScreenPadding)
-                .background(colors.ElevatedSurfaceCol, RoundedCornerShape(UiConfig.Controls.ButtonRadius))
-                .padding(UiConfig.Spacing.SectionGap),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ListBuffer),
-        ) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onClose) {
-                    Text("Close")
-                }
-            }
-            content()
-        }
-    }
-}
-
-@Composable
-private fun DetailCopy(metadata: GamebookMetadata) {
-    Column(verticalArrangement = Arrangement.spacedBy(UiConfig.Spacing.ItemGap)) {
-        Text(text = metadata.title, style = MaterialTheme.typography.displayMedium)
-        Text(text = "${metadata.author} - ${metadata.genre} - ${metadata.version}", style = MaterialTheme.typography.labelLarge)
-        Text(text = metadata.description, style = MaterialTheme.typography.bodyLarge)
-    }
-}
-
-@Composable
-private fun ArtworkFrame(
+internal fun ArtworkFrame(
     artworkPath: String?,
     displayMode: LibraryDisplayMode,
     modifier: Modifier = Modifier,
@@ -763,14 +681,6 @@ private fun StoreGamebook.storeStatusText(): String {
     }
 }
 
-private fun StoreGamebook.storeActionText(): String {
-    return when {
-        updateAvailable -> "Update downloaded copy"
-        isDownloaded -> "Downloaded"
-        else -> "Download for offline play"
-    }
-}
-
 private fun LibrarySortMode.comparator(): Comparator<LocalGamebook> {
     return when (this) {
         LibrarySortMode.Title -> compareBy(String.CASE_INSENSITIVE_ORDER) { it.metadata.title }
@@ -778,7 +688,7 @@ private fun LibrarySortMode.comparator(): Comparator<LocalGamebook> {
     }
 }
 
-private fun GamebookMetadata.featureLabels(): List<String> {
+internal fun GamebookMetadata.featureLabels(): List<String> {
     val text = "$title $genre $description".lowercase()
     return buildList {
         if ("detective" in text || "mystery" in text || "noir" in text) add("Evidence")

@@ -1,6 +1,6 @@
 {
-  "versionCode": 19,
-  "versionName": "0.18.1",
+  "versionCode": 20,
+  "versionName": "0.19.0",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "Clean rebuild: store artwork and downloads now come from story-boy.vercel.app with the compressed 0.3.1 gamebooks."
+  "releaseNotes": "Full-page themed store detail with author, stats, and about sections; Supabase accounts with sign-in, profile, and cross-device library."
 }
