@@ -1,0 +1,65 @@
+-- Seed the store catalogue with the two launch gamebooks.
+
+insert into public.books (
+  id, title, author, genre, description, about, version, price_usd,
+  language, publisher, published_on, node_count, ending_count,
+  file_size_bytes, features, download_path, poster_path, banner_path
+) values
+  (
+    'the_long_shadow',
+    'The Long Shadow',
+    'Steven Blanc',
+    'Detective Noir',
+    'A complete 1990s noir test adventure featuring former police detective Nathan Reed.',
+    'The rain has not stopped for days, and neither has the case. When Evelyn Callahan walks into Nathan Reed''s office with a carefully controlled secret, the former police detective is pulled into a disappearance that runs through jazz clubs, dock ledgers, and people who prefer their history buried. Collect evidence, work the city map, and decide who is lying before the long shadow closes over you.',
+    '0.3.0-test',
+    0,
+    'English',
+    'StoryBoy',
+    '2026-07-19',
+    68,
+    null,
+    39827386,
+    array['Evidence board', 'Puzzles', 'Dice battles', 'City map'],
+    '/store/the-long-shadow.gbk',
+    '/store/the-long-shadow-poster.png',
+    '/store/the-long-shadow-banner.png'
+  ),
+  (
+    'anya_suitcase_scenic_route',
+    'Anya and the Suitcase That Took the Scenic Route',
+    'Steven Blanc',
+    'Contemporary Travel Comedy',
+    'Anya''s carefully packed suitcase begins a holiday of its own, sending her and Steven through luggage depots, accidental tours, a celebrity mix-up, and a hidden island festival where the best souvenirs are the stories collected along the way.',
+    'There is only one rule for this holiday: calm, organized, and completely free of avoidable drama. The suitcase has other plans. Chase it from Trinidad to Lisbon and beyond through luggage depots, accidental tours, a celebrity mix-up, and a hidden island festival. Collect memories instead of evidence, solve gentle puzzles, and find out which of fourteen endings your holiday deserves.',
+    '0.3.0',
+    0,
+    'English',
+    'StoryBoy',
+    '2026-07-19',
+    109,
+    14,
+    56296514,
+    array['Memories', 'Puzzles', 'Dice battles', 'Travel maps', '14 endings'],
+    '/store/anya-suitcase-scenic-route.gbk',
+    '/store/anya-suitcase-scenic-route-poster.png',
+    '/store/anya-suitcase-scenic-route-banner.png'
+  )
+on conflict (id) do update set
+  title = excluded.title,
+  author = excluded.author,
+  genre = excluded.genre,
+  description = excluded.description,
+  about = excluded.about,
+  version = excluded.version,
+  price_usd = excluded.price_usd,
+  language = excluded.language,
+  publisher = excluded.publisher,
+  published_on = excluded.published_on,
+  node_count = excluded.node_count,
+  ending_count = excluded.ending_count,
+  file_size_bytes = excluded.file_size_bytes,
+  features = excluded.features,
+  download_path = excluded.download_path,
+  poster_path = excluded.poster_path,
+  banner_path = excluded.banner_path;

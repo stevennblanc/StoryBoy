@@ -1,9 +1,25 @@
 const STORE_INDEX_URL = "/store/store-index.json";
+const SUPABASE_URL = "https://ndgguqbrhatvcqetgeks.supabase.co";
+const SUPABASE_KEY = "sb_publishable_H46jhfVAHcILTZQyu7BleA_I2YohwoI";
+
+let supabase = null;
+try {
+  const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm");
+  supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch (error) {
+  console.warn("Supabase client unavailable, using static store index.", error);
+}
+
 const state = {
   view: "library",
   store: [],
   library: [],
+  storeSource: "static",
   query: "",
+  session: null,
+  ownedBookIds: new Set(),
+  detailBookId: null,
+  accountMessage: "",
   activeBook: null,
   activePackage: null,
   currentNodeId: null,
@@ -22,29 +38,119 @@ navButtons.forEach((button) => {
     state.view = button.dataset.view;
     state.activeBook = null;
     state.activePackage = null;
+    state.detailBookId = null;
     updateNav();
     render();
   });
 });
 
+initAuth();
 loadStore();
 
-async function loadStore(force = false) {
-  try {
-    if (force) {
-      app.innerHTML = `<p class="muted">Refreshing store...</p>`;
-    }
-    const response = await fetch(`${STORE_INDEX_URL}?t=${Date.now()}`, { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`Store index returned ${response.status}`);
-    }
-    const index = await response.json();
-    state.store = Array.isArray(index.gamebooks) ? index.gamebooks : [];
-    state.library = state.store.filter((book) => readProgress(book.id));
+async function initAuth() {
+  if (!supabase) return;
+  const { data } = await supabase.auth.getSession();
+  state.session = data?.session || null;
+  await loadPurchases();
+  supabase.auth.onAuthStateChange(async (_event, session) => {
+    state.session = session;
+    await loadPurchases();
     render();
-  } catch (error) {
-    app.innerHTML = `<p class="error">Could not load the StoryBoy store. ${escapeHtml(error.message)}</p>`;
+  });
+  render();
+}
+
+async function loadPurchases() {
+  state.ownedBookIds = new Set();
+  if (!supabase || !state.session) return;
+  const { data, error } = await supabase.from("purchases").select("book_id");
+  if (!error && Array.isArray(data)) {
+    state.ownedBookIds = new Set(data.map((row) => row.book_id));
   }
+}
+
+async function loadStore(force = false) {
+  if (force) {
+    app.innerHTML = `<p class="muted">Refreshing store...</p>`;
+  }
+  const books = await loadCatalogue();
+  if (books) {
+    state.store = books;
+    render();
+  } else {
+    app.innerHTML = `<p class="error">Could not load the StoryBoy store.</p>`;
+  }
+}
+
+async function loadCatalogue() {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("books")
+      .select("*")
+      .eq("is_published", true)
+      .order("published_on", { ascending: false });
+    if (!error && Array.isArray(data) && data.length > 0) {
+      state.storeSource = "supabase";
+      return data.map(normalizeCatalogueBook);
+    }
+    console.warn("Falling back to static store index.", error);
+  }
+  try {
+    const response = await fetch(`${STORE_INDEX_URL}?t=${Date.now()}`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`Store index returned ${response.status}`);
+    const index = await response.json();
+    state.storeSource = "static";
+    return (Array.isArray(index.gamebooks) ? index.gamebooks : []).map(normalizeStaticBook);
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+function normalizeCatalogueBook(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    author: row.author,
+    genre: row.genre || "",
+    description: row.description || "",
+    about: row.about || "",
+    version: row.version || "",
+    priceUsd: Number(row.price_usd || 0),
+    language: row.language || "",
+    publisher: row.publisher || "",
+    publishedOn: row.published_on || "",
+    nodeCount: row.node_count,
+    endingCount: row.ending_count,
+    fileSizeBytes: row.file_size_bytes,
+    features: Array.isArray(row.features) ? row.features : [],
+    downloadUrl: row.download_path,
+    posterUrl: row.poster_path || "",
+    bannerUrl: row.banner_path || "",
+  };
+}
+
+function normalizeStaticBook(book) {
+  return {
+    id: book.id,
+    title: book.title,
+    author: book.author || "",
+    genre: book.genre || "",
+    description: book.description || "",
+    about: "",
+    version: book.version || "",
+    priceUsd: 0,
+    language: "",
+    publisher: "",
+    publishedOn: "",
+    nodeCount: null,
+    endingCount: null,
+    fileSizeBytes: null,
+    features: [],
+    downloadUrl: book.downloadUrl,
+    posterUrl: book.posterUrl || "",
+    bannerUrl: book.bannerUrl || "",
+  };
 }
 
 function updateNav() {
@@ -63,7 +169,13 @@ function render() {
   if (state.view === "library") {
     renderLibrary();
   } else if (state.view === "store") {
-    renderStore();
+    if (state.detailBookId) {
+      renderBookDetail();
+    } else {
+      renderStore();
+    }
+  } else if (state.view === "account") {
+    renderAccount();
   } else {
     renderSettings();
   }
@@ -71,12 +183,13 @@ function render() {
 
 function titleForView(view) {
   if (view === "store") return "Store";
+  if (view === "account") return "Account";
   if (view === "settings") return "Settings";
   return "Library";
 }
 
 function renderLibrary() {
-  const books = state.store.filter((book) => readProgress(book.id));
+  const books = state.store.filter((book) => state.ownedBookIds.has(book.id) || readProgress(book.id));
   if (books.length === 0) {
     app.innerHTML = `
       <div class="panel">
@@ -147,6 +260,7 @@ function renderSettings() {
 
 function renderBookCard(book) {
   const progress = readProgress(book.id);
+  const statusLine = progress ? "In progress" : state.ownedBookIds.has(book.id) ? "In your library" : escapeHtml(book.genre || "");
   return `
     <article class="book-card">
       <button class="plain-button" type="button" data-book-id="${escapeHtml(book.id)}">
@@ -154,30 +268,130 @@ function renderBookCard(book) {
       </button>
       <div class="book-meta">
         <p class="book-title">${escapeHtml(book.title)}</p>
-        <p class="muted">${progress ? "In progress" : escapeHtml(book.genre || "")}</p>
+        <p class="muted">${statusLine}</p>
       </div>
     </article>
   `;
 }
 
 function renderStoreRow(book) {
-  const progress = readProgress(book.id);
+  const owned = state.ownedBookIds.has(book.id);
   return `
     <article class="store-row">
-      <img src="${escapeAttribute(book.posterUrl || "")}" alt="">
+      <button class="plain-button" type="button" data-detail-id="${escapeHtml(book.id)}">
+        <img src="${escapeAttribute(book.posterUrl || "")}" alt="">
+      </button>
       <div class="store-info">
-        <h2>${escapeHtml(book.title)}</h2>
+        <button class="plain-button store-title-button" type="button" data-detail-id="${escapeHtml(book.id)}">
+          <h2>${escapeHtml(book.title)}</h2>
+        </button>
         <p class="muted">${escapeHtml(book.author || "")}</p>
         <p class="muted">${escapeHtml(book.genre || "")}</p>
-        <p>${escapeHtml(book.description || "")}</p>
-        <div class="actions">
-          <button class="primary-button" type="button" data-book-id="${escapeHtml(book.id)}">
-            ${progress ? "Resume" : "Play"}
-          </button>
-        </div>
+        <p class="price-line">${owned ? `<span class="owned-badge">In your library</span>` : renderPrice(book)}</p>
       </div>
     </article>
   `;
+}
+
+function renderPrice(book) {
+  if (!book.priceUsd) return `<span class="free-badge">Free</span>`;
+  return `<span class="price-badge">$${book.priceUsd.toFixed(2)}</span>`;
+}
+
+function renderBookDetail() {
+  const book = state.store.find((entry) => entry.id === state.detailBookId);
+  if (!book) {
+    state.detailBookId = null;
+    renderStore();
+    return;
+  }
+  title.textContent = "Store";
+  const owned = state.ownedBookIds.has(book.id);
+  const progress = readProgress(book.id);
+  const signedIn = Boolean(state.session);
+
+  const detailCells = [
+    book.nodeCount ? detailCell("Length", `${book.nodeCount} passages`) : "",
+    book.endingCount ? detailCell("Endings", String(book.endingCount)) : "",
+    book.language ? detailCell("Language", book.language) : "",
+    book.fileSizeBytes ? detailCell("Size", formatBytes(book.fileSizeBytes)) : "",
+    book.version ? detailCell("Version", book.version) : "",
+    book.publishedOn ? detailCell("Published", book.publishedOn) : "",
+  ].filter(Boolean).join("");
+
+  let actions = "";
+  if (owned || progress) {
+    actions = `<button class="primary-button" type="button" data-read-id="${escapeHtml(book.id)}">${progress ? "Continue reading" : "Read now"}</button>`;
+  } else if (signedIn) {
+    actions = `<button class="primary-button" type="button" data-get-id="${escapeHtml(book.id)}">Get${book.priceUsd ? ` — $${book.priceUsd.toFixed(2)}` : " — Free"}</button>`;
+  } else {
+    actions = `
+      <button class="primary-button" type="button" data-read-id="${escapeHtml(book.id)}">Read now</button>
+      <button class="secondary-button" type="button" data-go-account>Sign in to add it to your library</button>
+    `;
+  }
+
+  app.innerHTML = `
+    <article class="book-detail">
+      <button class="secondary-button back-button" type="button" data-back-to-store>&#8592; Store</button>
+      <div class="detail-hero">
+        <img class="detail-poster" src="${escapeAttribute(book.posterUrl || "")}" alt="">
+        <div class="detail-headline">
+          <h2>${escapeHtml(book.title)}</h2>
+          <p class="detail-author">${escapeHtml(book.author)}</p>
+          <p class="muted">${escapeHtml(book.genre || "")}</p>
+          <p class="price-line">${owned ? `<span class="owned-badge">In your library</span>` : renderPrice(book)}</p>
+        </div>
+      </div>
+      <div class="actions detail-actions">${actions}</div>
+      <p class="reader-text detail-description">${escapeHtml(book.description || "")}</p>
+      ${book.features.length ? `<div class="chip-row">${book.features.map((f) => `<span class="chip">${escapeHtml(f)}</span>`).join("")}</div>` : ""}
+      ${detailCells ? `<section class="panel"><h3>Book details</h3><div class="detail-grid">${detailCells}</div></section>` : ""}
+      ${book.about ? `<section class="panel"><h3>About this book</h3><p class="detail-about">${escapeHtml(book.about)}</p></section>` : ""}
+    </article>
+  `;
+
+  app.querySelector("[data-back-to-store]")?.addEventListener("click", () => {
+    state.detailBookId = null;
+    render();
+  });
+  app.querySelector("[data-go-account]")?.addEventListener("click", () => {
+    state.view = "account";
+    updateNav();
+    render();
+  });
+  app.querySelector("[data-get-id]")?.addEventListener("click", (event) => acquireBook(event.currentTarget.dataset.getId));
+  app.querySelector("[data-read-id]")?.addEventListener("click", (event) => {
+    const target = state.store.find((entry) => entry.id === event.currentTarget.dataset.readId);
+    if (target) openBook(target);
+  });
+}
+
+function detailCell(label, value) {
+  return `
+    <div class="detail-cell">
+      <p class="muted">${escapeHtml(label)}</p>
+      <p>${escapeHtml(value)}</p>
+    </div>
+  `;
+}
+
+async function acquireBook(bookId) {
+  if (!supabase || !state.session) return;
+  const { error } = await supabase.from("purchases").insert({
+    user_id: state.session.user.id,
+    book_id: bookId,
+  });
+  if (error && error.code !== "23505") {
+    app.querySelector(".detail-actions").innerHTML = `<p class="error">Could not add this book: ${escapeHtml(error.message)}</p>`;
+    return;
+  }
+  state.ownedBookIds.add(bookId);
+  render();
+}
+
+function formatBytes(bytes) {
+  return `${(Number(bytes) / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function wireSearch() {
@@ -195,6 +409,104 @@ function wireBookButtons() {
       const book = state.store.find((entry) => entry.id === button.dataset.bookId);
       if (book) openBook(book);
     });
+  });
+  app.querySelectorAll("[data-detail-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.detailBookId = button.dataset.detailId;
+      render();
+    });
+  });
+}
+
+function renderAccount() {
+  if (!supabase) {
+    app.innerHTML = `
+      <div class="panel">
+        <h2>Accounts unavailable</h2>
+        <p class="muted">The store service could not be reached. Reading still works without an account.</p>
+      </div>
+    `;
+    return;
+  }
+
+  if (state.session) {
+    const user = state.session.user;
+    const displayName = user.user_metadata?.display_name || user.email;
+    app.innerHTML = `
+      <section class="settings-list">
+        <div class="panel">
+          <h2>${escapeHtml(displayName)}</h2>
+          <p class="muted">${escapeHtml(user.email)}</p>
+          <p class="muted">${state.ownedBookIds.size} book${state.ownedBookIds.size === 1 ? "" : "s"} in your library</p>
+        </div>
+        ${state.accountMessage ? `<p class="muted">${escapeHtml(state.accountMessage)}</p>` : ""}
+        <button class="secondary-button" type="button" data-sign-out>Sign out</button>
+      </section>
+    `;
+    app.querySelector("[data-sign-out]").addEventListener("click", async () => {
+      state.accountMessage = "";
+      await supabase.auth.signOut();
+    });
+    return;
+  }
+
+  app.innerHTML = `
+    <section class="settings-list">
+      <div class="panel">
+        <h2>Sign in</h2>
+        <form class="auth-form" data-sign-in-form>
+          <input name="email" type="email" placeholder="Email" autocomplete="email" required>
+          <input name="password" type="password" placeholder="Password" autocomplete="current-password" required>
+          <button class="primary-button" type="submit">Sign in</button>
+        </form>
+      </div>
+      <div class="panel">
+        <h2>Create account</h2>
+        <p class="muted">An account keeps your StoryBoy library together. All current books are free.</p>
+        <form class="auth-form" data-sign-up-form>
+          <input name="displayName" type="text" placeholder="Display name" autocomplete="nickname">
+          <input name="email" type="email" placeholder="Email" autocomplete="email" required>
+          <input name="password" type="password" placeholder="Password (8+ characters)" autocomplete="new-password" minlength="8" required>
+          <button class="primary-button" type="submit">Create account</button>
+        </form>
+      </div>
+      ${state.accountMessage ? `<p class="muted account-message">${escapeHtml(state.accountMessage)}</p>` : ""}
+    </section>
+  `;
+
+  app.querySelector("[data-sign-in-form]").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    state.accountMessage = "Signing in...";
+    render();
+    const { error } = await supabase.auth.signInWithPassword({
+      email: String(form.get("email")),
+      password: String(form.get("password")),
+    });
+    state.accountMessage = error ? `Sign in failed: ${error.message}` : "";
+    render();
+  });
+
+  app.querySelector("[data-sign-up-form]").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    state.accountMessage = "Creating account...";
+    render();
+    const { data, error } = await supabase.auth.signUp({
+      email: String(form.get("email")),
+      password: String(form.get("password")),
+      options: {
+        data: { display_name: String(form.get("displayName") || "").trim() || undefined },
+      },
+    });
+    if (error) {
+      state.accountMessage = `Could not create the account: ${error.message}`;
+    } else if (!data.session) {
+      state.accountMessage = "Account created. Check your email for a confirmation link, then sign in.";
+    } else {
+      state.accountMessage = "";
+    }
+    render();
   });
 }
 
