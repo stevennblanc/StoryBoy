@@ -47,7 +47,7 @@ Email + password via Supabase Auth. The web app's Account tab handles sign up / 
 
 ## Android
 
-The Android app still reads `store/store-index.json` (absolute URLs). Migrating it to the Supabase catalogue (and adding auth) is future work; keep the JSON updated when books change until then.
+The Android app reads `https://story-boy.vercel.app/store/store-index.json` (the same `web/store/store-index.json` file the web fallback uses) and resolves its relative URLs against that address. Migrating Android to the Supabase catalogue (and adding auth) is future work; keep the JSON updated when books change until then.
 
 ## Updating the catalogue
 

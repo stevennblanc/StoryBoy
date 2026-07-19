@@ -124,8 +124,8 @@ h3 {
 }
 
 .nav-icon {
-  font-size: 24px;
-  line-height: 1;
+  width: 22px;
+  height: 22px;
 }
 
 .icon-button {
@@ -414,6 +414,19 @@ h3 {
 .auth-form {
   display: grid;
   gap: 10px;
+}
+
+.oauth-row {
+  display: grid;
+  gap: 10px;
+}
+
+.oauth-row .secondary-button {
+  width: 100%;
+}
+
+.oauth-divider {
+  text-align: center;
 }
 
 .auth-form input {

@@ -20,6 +20,7 @@ const state = {
   ownedBookIds: new Set(),
   detailBookId: null,
   accountMessage: "",
+  profileMessage: "",
   activeBook: null,
   activePackage: null,
   currentNodeId: null,
@@ -235,10 +236,7 @@ function renderSettings() {
   const fontSize = Number(localStorage.getItem("storyboy.web.fontSize") || 22);
   app.innerHTML = `
     <section class="settings-list">
-      <div class="panel">
-        <h2>Web preview</h2>
-        <p class="muted">This static version reads the same .gbk packages as Android. It stores progress in this browser only.</p>
-      </div>
+      ${renderProfilePanel()}
       <div class="panel">
         <h2>Reader text size</h2>
         <input id="font-size" type="range" min="18" max="30" step="1" value="${fontSize}">
@@ -246,7 +244,7 @@ function renderSettings() {
       </div>
       <div class="panel">
         <h2>Presentation</h2>
-        <p class="muted">The web preview uses static presentation by default so behavior stays close to the future e-ink version.</p>
+        <p class="muted">StoryBoy on the web uses static presentation so behavior stays close to the future e-ink reader. Reading progress is stored in this browser.</p>
       </div>
     </section>
   `;
@@ -255,6 +253,55 @@ function renderSettings() {
     localStorage.setItem("storyboy.web.fontSize", slider.value);
     document.documentElement.style.setProperty("--reader-size", `${slider.value}px`);
     slider.nextElementSibling.textContent = `${slider.value}px`;
+  });
+  wireProfilePanel();
+}
+
+function renderProfilePanel() {
+  if (!supabase || !state.session) {
+    return `
+      <div class="panel">
+        <h2>Profile</h2>
+        <p class="muted">Sign in to manage your StoryBoy profile and library.</p>
+        <button class="secondary-button" type="button" data-go-account>Go to Account</button>
+      </div>
+    `;
+  }
+  const user = state.session.user;
+  const displayName = user.user_metadata?.display_name || "";
+  const provider = user.app_metadata?.provider || "email";
+  return `
+    <div class="panel">
+      <h2>Profile</h2>
+      <form class="auth-form" data-profile-form>
+        <label class="muted" for="profile-display-name">Display name</label>
+        <input id="profile-display-name" name="displayName" type="text" value="${escapeAttribute(displayName)}" placeholder="Display name" autocomplete="nickname">
+        <button class="primary-button" type="submit">Save profile</button>
+      </form>
+      <p class="muted">Signed in as ${escapeHtml(user.email)} (${escapeHtml(provider)})</p>
+      <p class="muted">${state.ownedBookIds.size} book${state.ownedBookIds.size === 1 ? "" : "s"} in your library</p>
+      ${state.profileMessage ? `<p class="muted">${escapeHtml(state.profileMessage)}</p>` : ""}
+    </div>
+  `;
+}
+
+function wireProfilePanel() {
+  app.querySelector("[data-go-account]")?.addEventListener("click", () => {
+    state.view = "account";
+    updateNav();
+    render();
+  });
+  app.querySelector("[data-profile-form]")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const displayName = String(new FormData(event.currentTarget).get("displayName") || "").trim();
+    state.profileMessage = "Saving...";
+    render();
+    const { error } = await supabase.auth.updateUser({ data: { display_name: displayName } });
+    if (!error) {
+      await supabase.from("profiles").update({ display_name: displayName }).eq("id", state.session.user.id);
+    }
+    state.profileMessage = error ? `Could not save: ${error.message}` : "Profile saved.";
+    render();
   });
 }
 
@@ -454,6 +501,11 @@ function renderAccount() {
     <section class="settings-list">
       <div class="panel">
         <h2>Sign in</h2>
+        <div class="oauth-row">
+          <button class="secondary-button" type="button" data-oauth="google">Continue with Google</button>
+          <button class="secondary-button" type="button" data-oauth="facebook">Continue with Facebook</button>
+        </div>
+        <p class="muted oauth-divider">or with email</p>
         <form class="auth-form" data-sign-in-form>
           <input name="email" type="email" placeholder="Email" autocomplete="email" required>
           <input name="password" type="password" placeholder="Password" autocomplete="current-password" required>
@@ -473,6 +525,20 @@ function renderAccount() {
       ${state.accountMessage ? `<p class="muted account-message">${escapeHtml(state.accountMessage)}</p>` : ""}
     </section>
   `;
+
+  app.querySelectorAll("[data-oauth]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      state.accountMessage = "";
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: button.dataset.oauth,
+        options: { redirectTo: window.location.origin },
+      });
+      if (error) {
+        state.accountMessage = `${button.textContent.trim()} is not available yet: ${error.message}`;
+        render();
+      }
+    });
+  });
 
   app.querySelector("[data-sign-in-form]").addEventListener("submit", async (event) => {
     event.preventDefault();

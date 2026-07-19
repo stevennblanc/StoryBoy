@@ -4,11 +4,13 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.dp
 
 enum class StoryBoyIconKind {
@@ -33,33 +35,48 @@ fun StoryBoyIcon(
         val thinStroke = Stroke(width = size.minDimension * 0.06f, cap = StrokeCap.Round)
         when (kind) {
             StoryBoyIconKind.Books -> {
-                drawRect(color, topLeft = Offset(size.width * 0.18f, size.height * 0.18f), size = Size(size.width * 0.24f, size.height * 0.64f), style = stroke)
-                drawRect(color, topLeft = Offset(size.width * 0.48f, size.height * 0.18f), size = Size(size.width * 0.28f, size.height * 0.64f), style = stroke)
-                drawLine(color, Offset(size.width * 0.30f, size.height * 0.26f), Offset(size.width * 0.30f, size.height * 0.74f), strokeWidth = stroke.width)
+                val pageSize = Size(size.width * 0.30f, size.height * 0.46f)
+                val corner = CornerRadius(size.minDimension * 0.06f)
+                rotate(degrees = -7f, pivot = Offset(size.width * 0.50f, size.height * 0.26f)) {
+                    drawRoundRect(color, topLeft = Offset(size.width * 0.18f, size.height * 0.26f), size = pageSize, cornerRadius = corner, style = stroke)
+                }
+                rotate(degrees = 7f, pivot = Offset(size.width * 0.52f, size.height * 0.26f)) {
+                    drawRoundRect(color, topLeft = Offset(size.width * 0.52f, size.height * 0.26f), size = pageSize, cornerRadius = corner, style = stroke)
+                }
             }
 
             StoryBoyIconKind.Store -> {
-                drawLine(color, Offset(size.width * 0.18f, size.height * 0.38f), Offset(size.width * 0.82f, size.height * 0.38f), strokeWidth = stroke.width, cap = StrokeCap.Round)
-                drawRect(color, topLeft = Offset(size.width * 0.25f, size.height * 0.38f), size = Size(size.width * 0.50f, size.height * 0.40f), style = stroke)
-                drawLine(color, Offset(size.width * 0.25f, size.height * 0.38f), Offset(size.width * 0.34f, size.height * 0.20f), strokeWidth = stroke.width, cap = StrokeCap.Round)
-                drawLine(color, Offset(size.width * 0.75f, size.height * 0.38f), Offset(size.width * 0.66f, size.height * 0.20f), strokeWidth = stroke.width, cap = StrokeCap.Round)
-                drawLine(color, Offset(size.width * 0.34f, size.height * 0.20f), Offset(size.width * 0.66f, size.height * 0.20f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawRoundRect(
+                    color,
+                    topLeft = Offset(size.width * 0.22f, size.height * 0.34f),
+                    size = Size(size.width * 0.56f, size.height * 0.46f),
+                    cornerRadius = CornerRadius(size.minDimension * 0.08f),
+                    style = stroke,
+                )
+                drawArc(
+                    color,
+                    startAngle = 180f,
+                    sweepAngle = 180f,
+                    useCenter = false,
+                    topLeft = Offset(size.width * 0.35f, size.height * 0.18f),
+                    size = Size(size.width * 0.30f, size.height * 0.32f),
+                    style = stroke,
+                )
             }
 
             StoryBoyIconKind.Gear -> {
-                drawCircle(color, radius = size.minDimension * 0.20f, center = center, style = stroke)
-                drawCircle(color, radius = size.minDimension * 0.06f, center = center)
-                repeat(8) { index ->
-                    val angle = Math.toRadians((index * 45).toDouble())
+                drawCircle(color, radius = size.minDimension * 0.16f, center = center, style = stroke)
+                repeat(6) { index ->
+                    val angle = Math.toRadians((index * 60 + 30).toDouble())
                     val inner = Offset(
-                        x = center.x + kotlin.math.cos(angle).toFloat() * size.minDimension * 0.28f,
-                        y = center.y + kotlin.math.sin(angle).toFloat() * size.minDimension * 0.28f,
+                        x = center.x + kotlin.math.cos(angle).toFloat() * size.minDimension * 0.26f,
+                        y = center.y + kotlin.math.sin(angle).toFloat() * size.minDimension * 0.26f,
                     )
                     val outer = Offset(
                         x = center.x + kotlin.math.cos(angle).toFloat() * size.minDimension * 0.40f,
                         y = center.y + kotlin.math.sin(angle).toFloat() * size.minDimension * 0.40f,
                     )
-                    drawLine(color, inner, outer, strokeWidth = stroke.width, cap = StrokeCap.Round)
+                    drawLine(color, inner, outer, strokeWidth = stroke.width * 1.3f, cap = StrokeCap.Round)
                 }
             }
 

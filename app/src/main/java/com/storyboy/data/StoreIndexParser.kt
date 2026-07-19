@@ -12,6 +12,7 @@ object StoreIndexParser {
         localBannerPaths: Map<String, String?> = emptyMap(),
         remotePosterPaths: Map<String, String?> = emptyMap(),
         remoteBannerPaths: Map<String, String?> = emptyMap(),
+        baseUrl: String? = null,
     ): List<StoreGamebook> {
         val source = JSONObject(json)
         val entries = source.optJSONArray("gamebooks") ?: return emptyList()
@@ -31,7 +32,7 @@ object StoreIndexParser {
                 add(
                     StoreGamebook(
                         metadata = metadata,
-                        downloadUrl = item.getString("downloadUrl"),
+                        downloadUrl = resolveUrl(baseUrl, item.getString("downloadUrl")),
                         posterPath = localPosterPaths[metadata.id] ?: remotePosterPaths[metadata.id],
                         bannerPath = localBannerPaths[metadata.id] ?: remoteBannerPaths[metadata.id],
                         isDownloaded = metadata.id in localVersions,
@@ -41,5 +42,12 @@ object StoreIndexParser {
                 )
             }
         }
+    }
+
+    fun resolveUrl(baseUrl: String?, url: String): String {
+        if (baseUrl == null || url.startsWith("http://") || url.startsWith("https://")) {
+            return url
+        }
+        return java.net.URL(java.net.URL(baseUrl), url).toString()
     }
 }

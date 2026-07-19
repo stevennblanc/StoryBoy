@@ -44,6 +44,7 @@ class GamebookStoreRepository(context: Context) {
             localBannerPaths = localBannerPaths,
             remotePosterPaths = remotePosterPaths,
             remoteBannerPaths = remoteBannerPaths,
+            baseUrl = AppConfig.StoreIndexUrl,
         )
     }
 
@@ -67,7 +68,7 @@ class GamebookStoreRepository(context: Context) {
                     item.optString(field).takeIf { it.isNotBlank() }
                 }
                 if (id.isNotBlank() && imageUrl != null) {
-                    put(id, downloadArtwork(id, imageUrl))
+                    put(id, downloadArtwork(id, StoreIndexParser.resolveUrl(AppConfig.StoreIndexUrl, imageUrl)))
                 }
             }
         }

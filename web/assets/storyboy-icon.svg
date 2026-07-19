@@ -1,9 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="StoryBoy">
   <rect width="512" height="512" fill="#050505"/>
-  <rect x="142" y="54" width="228" height="404" rx="34" fill="#f7f7f7"/>
-  <rect x="174" y="98" width="164" height="230" rx="10" fill="#050505"/>
-  <rect x="200" y="356" width="72" height="18" rx="9" fill="#050505"/>
-  <circle cx="306" cy="366" r="18" fill="#050505"/>
-  <circle cx="330" cy="396" r="18" fill="#050505"/>
-  <rect x="232" y="424" width="48" height="10" rx="5" fill="#050505"/>
+  <g transform="rotate(-7 250 168)">
+    <rect x="116" y="168" width="134" height="180" rx="16" fill="#f7f7f7"/>
+    <g stroke="#050505" stroke-linecap="round" fill="none">
+      <path d="M144,200L224,200" stroke-width="12"/>
+      <path d="M144,224L192,224" stroke-width="12"/>
+      <path d="M154,296L214,296M184,266L184,326" stroke-width="26"/>
+    </g>
+  </g>
+  <g transform="rotate(7 262 168)">
+    <rect x="262" y="168" width="134" height="180" rx="16" fill="#f7f7f7"/>
+    <g stroke="#050505" stroke-linecap="round" fill="none">
+      <path d="M288,200L368,200" stroke-width="12"/>
+      <path d="M288,224L336,224" stroke-width="12"/>
+    </g>
+    <circle cx="316" cy="300" r="20" fill="#050505"/>
+    <circle cx="360" cy="270" r="20" fill="#050505"/>
+  </g>
 </svg>

@@ -13,7 +13,7 @@ android {
         minSdk = 31
         targetSdk = 35
         versionCode = 17
-        versionName = "0.17.0"
+        versionName = "0.18.0"
         buildConfigField(
             "String",
             "UPDATE_MANIFEST_URL",
@@ -22,7 +22,7 @@ android {
         buildConfigField(
             "String",
             "STORE_INDEX_URL",
-            "\"https://github.com/stevennblanc/StoryBoy-Adventures/releases/latest/download/store-index.json\"",
+            "\"https://story-boy.vercel.app/store/store-index.json\"",
         )
     }
 
