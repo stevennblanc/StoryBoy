@@ -46,9 +46,19 @@ flutter test
 flutter build apk --debug     # output: build/app/outputs/flutter-apk/app-debug.apk
 ```
 
+## In-app updater
+
+The Flutter app carries the same self-update flow as the Kotlin app: it reads
+`update.json` from the latest GitHub release, compares `versionCode` against its
+own build number, downloads the APK to `cacheDir/updates/`, and hands it to the
+package installer through a small `storyboy/updater` MethodChannel in
+`MainActivity.kt` (FileProvider authority `com.storyboy.apk_provider`, mirroring
+the Kotlin app). Because the applicationId and debug signing match, the update
+channel can move users from the Kotlin app to the Flutter app with a normal
+release: publish a Flutter APK with a higher `versionCode` as `storyboy-debug.apk`.
+
 ## Not yet ported
 
-- In-app APK self-updater (Kotlin `updater/` package)
 - Appearance settings beyond text size (dark/light mode toggle, motion modes)
 - Library filters/sort/search and cartridge list view
 - Google/Facebook OAuth (needs provider setup in the Supabase dashboard first)

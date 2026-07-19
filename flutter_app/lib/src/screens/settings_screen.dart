@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../app_model.dart';
+import '../data/app_updater.dart';
 import '../theme.dart';
+
+enum _UpdatePhase { idle, checking, upToDate, available, downloading, failed }
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key, required this.model});
@@ -17,9 +21,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _displayNameController = TextEditingController();
+  final _updater = AppUpdater();
   bool _busy = false;
   String _message = '';
   double _fontScale = 1.0;
+  String _appVersion = '';
+  _UpdatePhase _updatePhase = _UpdatePhase.idle;
+  UpdateManifest? _availableUpdate;
+  String _updateMessage = '';
 
   SupabaseClient get _supabase => Supabase.instance.client;
 
@@ -28,6 +37,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _fontScale = widget.model.progress.fontScale;
     _displayNameController.text = widget.model.displayName;
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) {
+        setState(() => _appVersion = '${info.version} (build ${info.buildNumber})');
+      }
+    });
+  }
+
+  Future<void> _checkForUpdate() async {
+    setState(() {
+      _updatePhase = _UpdatePhase.checking;
+      _updateMessage = '';
+    });
+    try {
+      final manifest = await _updater.checkForUpdate();
+      setState(() {
+        _availableUpdate = manifest;
+        _updatePhase = manifest == null ? _UpdatePhase.upToDate : _UpdatePhase.available;
+      });
+    } catch (error) {
+      setState(() {
+        _updatePhase = _UpdatePhase.failed;
+        _updateMessage = 'Update check failed. Check your connection and try again.';
+      });
+    }
+  }
+
+  Future<void> _downloadAndInstall() async {
+    final manifest = _availableUpdate;
+    if (manifest == null) return;
+    setState(() => _updatePhase = _UpdatePhase.downloading);
+    try {
+      final apk = await _updater.downloadUpdate(manifest);
+      await _updater.installUpdate(apk);
+      setState(() => _updatePhase = _UpdatePhase.idle);
+    } catch (error) {
+      setState(() {
+        _updatePhase = _UpdatePhase.failed;
+        _updateMessage = 'Could not install the update. $error';
+      });
+    }
   }
 
   @override
@@ -122,14 +171,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+              _panel(title: 'App updates', child: _updatePanel()),
+              const SizedBox(height: 16),
               _panel(
                 title: 'About',
-                child: const Column(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('StoryBoy 0.20.0 (Flutter)', style: TextStyle(fontSize: 16)),
-                    SizedBox(height: 6),
                     Text(
+                      'StoryBoy ${_appVersion.isEmpty ? '' : _appVersion}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
                       'Interactive gamebooks with a shared library across the app and story-boy.vercel.app.',
                       style: mutedStyle,
                     ),
@@ -141,6 +195,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       },
     );
+  }
+
+  Widget _updatePanel() {
+    switch (_updatePhase) {
+      case _UpdatePhase.idle:
+        return FilledButton(
+          onPressed: _checkForUpdate,
+          child: const Text('Check for app updates'),
+        );
+      case _UpdatePhase.checking:
+        return const Text('Checking for app updates...', style: mutedStyle);
+      case _UpdatePhase.upToDate:
+        return const Text('StoryBoy is up to date.', style: mutedStyle);
+      case _UpdatePhase.available:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            FilledButton(
+              onPressed: _downloadAndInstall,
+              child: Text('Install StoryBoy ${_availableUpdate?.versionName ?? ''}'),
+            ),
+            if (_availableUpdate?.releaseNotes.isNotEmpty ?? false)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(_availableUpdate!.releaseNotes, style: mutedStyle),
+              ),
+          ],
+        );
+      case _UpdatePhase.downloading:
+        return const Text('Downloading app update...', style: mutedStyle);
+      case _UpdatePhase.failed:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_updateMessage, style: mutedStyle),
+            TextButton(onPressed: _checkForUpdate, child: const Text('Try again')),
+          ],
+        );
+    }
   }
 
   Widget _accountPanel() {
