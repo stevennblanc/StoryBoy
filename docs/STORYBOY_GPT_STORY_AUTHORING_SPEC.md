@@ -22,7 +22,8 @@ Every `.gbk` package should include:
 
 Artwork rules:
 
-- `.png` is preferred; `.jpg` is allowed for smaller file sizes
+- `.jpg` is preferred for painted or photographic artwork; `.png` only when hard edges or transparency matter
+- Keep story images at or below `1280px` on the long side and aim for a total package under roughly 10 MB; AI image generators output multi-megabyte PNGs that must be re-encoded before packaging
 - Keep titles, logos, faces, and key objects away from the edges because display modes may crop slightly
 - Covers may use color, but must remain readable in grayscale for e-ink compatibility
 - Avoid relying on color alone for important information

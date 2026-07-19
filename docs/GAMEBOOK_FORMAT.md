@@ -21,7 +21,9 @@ StoryBoy uses two standard package artwork files:
 
 Rules:
 
-- `.png` is preferred; `.jpg` is allowed for smaller file sizes
+- `.jpg` is preferred for painted or photographic artwork; `.png` only when hard edges or transparency matter
+- Keep story images at or below `1280px` on the long side; a full package should stay under roughly 10 MB
+- `python scripts/compress_gamebook.py book.gbk` re-encodes an existing package to these standards and rewrites all image references
 - Keep titles, logos, and important faces away from the edges because display modes may crop slightly
 - Covers may use color, but should remain readable in grayscale for e-ink compatibility
 - Avoid relying on color alone for important information
