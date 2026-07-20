@@ -1,6 +1,6 @@
 {
-  "versionCode": 23,
-  "versionName": "0.21.1",
+  "versionCode": 24,
+  "versionName": "0.21.2",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "The app now uses the StoryBoy gamebook icon instead of the default Flutter logo."
+  "releaseNotes": "The updater now shows a download progress bar and the release notes for each update before you install it."
 }

@@ -29,6 +29,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   _UpdatePhase _updatePhase = _UpdatePhase.idle;
   UpdateManifest? _availableUpdate;
   String _updateMessage = '';
+  double? _downloadProgress;
 
   SupabaseClient get _supabase => Supabase.instance.client;
 
@@ -66,9 +67,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _downloadAndInstall() async {
     final manifest = _availableUpdate;
     if (manifest == null) return;
-    setState(() => _updatePhase = _UpdatePhase.downloading);
+    setState(() {
+      _updatePhase = _UpdatePhase.downloading;
+      _downloadProgress = null;
+    });
     try {
-      final apk = await _updater.downloadUpdate(manifest);
+      final apk = await _updater.downloadUpdate(
+        manifest,
+        onProgress: (progress) {
+          if (mounted) setState(() => _downloadProgress = progress);
+        },
+      );
       await _updater.installUpdate(apk);
       setState(() => _updatePhase = _UpdatePhase.idle);
     } catch (error) {
@@ -212,19 +221,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Text(
+              'StoryBoy ${_availableUpdate?.versionName ?? ''} is available',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            _releaseNotes(),
+            const SizedBox(height: 12),
             FilledButton(
               onPressed: _downloadAndInstall,
-              child: Text('Install StoryBoy ${_availableUpdate?.versionName ?? ''}'),
+              child: const Text('Download and install'),
             ),
-            if (_availableUpdate?.releaseNotes.isNotEmpty ?? false)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(_availableUpdate!.releaseNotes, style: mutedStyle),
-              ),
           ],
         );
       case _UpdatePhase.downloading:
-        return const Text('Downloading app update...', style: mutedStyle);
+        final progress = _downloadProgress;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Downloading update...', style: mutedStyle),
+                if (progress != null)
+                  Text('${(progress * 100).round()}%', style: mutedStyle),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 8,
+                backgroundColor: SbColors.surface2,
+                valueColor: const AlwaysStoppedAnimation(SbColors.accent),
+              ),
+            ),
+            if (progress != null && progress >= 1) ...[
+              const SizedBox(height: 8),
+              const Text('Opening the installer...', style: mutedStyle),
+            ],
+          ],
+        );
       case _UpdatePhase.failed:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -234,6 +271,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         );
     }
+  }
+
+  Widget _releaseNotes() {
+    final notes = _availableUpdate?.releaseNotes ?? '';
+    if (notes.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: SbColors.background,
+        border: Border.all(color: SbColors.line),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("What's new", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(notes, style: mutedStyle),
+        ],
+      ),
+    );
   }
 
   Widget _accountPanel() {

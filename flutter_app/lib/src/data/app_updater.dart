@@ -51,16 +51,47 @@ class AppUpdater {
     return manifest.versionCode > currentCode ? manifest : null;
   }
 
-  Future<File> downloadUpdate(UpdateManifest manifest) async {
-    final response = await http.get(Uri.parse(manifest.apkUrl));
-    if (response.statusCode != 200) {
-      throw HttpException('Update download failed with ${response.statusCode}');
+  /// Streams the APK download, reporting progress in [0, 1] when the server
+  /// sends a content length (null-progress ticks otherwise). GitHub release
+  /// asset URLs redirect to a CDN, which http follows automatically.
+  Future<File> downloadUpdate(
+    UpdateManifest manifest, {
+    void Function(double? progress)? onProgress,
+  }) async {
+    final client = http.Client();
+    try {
+      final request = http.Request('GET', Uri.parse(manifest.apkUrl));
+      final response = await client.send(request);
+      if (response.statusCode != 200) {
+        throw HttpException('Update download failed with ${response.statusCode}');
+      }
+
+      final cacheDir = await getTemporaryDirectory();
+      final apkFile = File('${cacheDir.path}/updates/storyboy-update.apk');
+      await apkFile.create(recursive: true);
+      final sink = apkFile.openWrite();
+
+      final total = response.contentLength;
+      var received = 0;
+      onProgress?.call(total != null && total > 0 ? 0 : null);
+      try {
+        await for (final chunk in response.stream) {
+          sink.add(chunk);
+          received += chunk.length;
+          if (total != null && total > 0) {
+            onProgress?.call(received / total);
+          } else {
+            onProgress?.call(null);
+          }
+        }
+      } finally {
+        await sink.close();
+      }
+      onProgress?.call(1);
+      return apkFile;
+    } finally {
+      client.close();
     }
-    final cacheDir = await getTemporaryDirectory();
-    final apkFile = File('${cacheDir.path}/updates/storyboy-update.apk');
-    await apkFile.create(recursive: true);
-    await apkFile.writeAsBytes(response.bodyBytes);
-    return apkFile;
   }
 
   Future<void> installUpdate(File apkFile) async {
