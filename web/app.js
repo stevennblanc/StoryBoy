@@ -1034,12 +1034,16 @@ function revealMap(node) {
   }
 }
 
+// Resolves an equipment item by id from collected items (which carry the full
+// object for looted, inline-granted gear) or the top-level catalog.
+function equipmentItem(id) {
+  return state.equipment.find((item) => item.id === id) || state.activePackage?.equipment.get(id) || null;
+}
+
 function effectiveStat(statId) {
   let value = state.stats[statId] || 0;
-  const catalog = state.activePackage?.equipment;
-  if (!catalog) return value;
   for (const itemId of Object.values(state.equippedBySlot)) {
-    const item = catalog.get(itemId);
+    const item = equipmentItem(itemId);
     const effects = item && (item.equip_effects || item.effects || item.while_equipped);
     if (effects && typeof effects[statId] === "number") value += effects[statId];
   }
@@ -1047,17 +1051,15 @@ function effectiveStat(statId) {
 }
 
 function equippedWeapon() {
-  const catalog = state.activePackage?.equipment;
-  if (!catalog) return null;
   for (const itemId of Object.values(state.equippedBySlot)) {
-    const item = catalog.get(itemId);
+    const item = equipmentItem(itemId);
     if (item && (item.damage || item.damage_dice)) return item;
   }
   return null;
 }
 
 function toggleEquip(itemId) {
-  const item = state.activePackage?.equipment.get(itemId);
+  const item = equipmentItem(itemId);
   const slot = item && (item.slot || item.equip_slot);
   if (!slot) return;
   if (state.equippedBySlot[slot] === itemId) {
