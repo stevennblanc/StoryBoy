@@ -26,6 +26,11 @@ const state = {
   currentNodeId: null,
   inventory: [],
   evidence: [],
+  stats: {},
+  checkResult: null,
+  enemyHp: null,
+  combatLog: [],
+  combatEnd: null,
 };
 
 const app = document.querySelector("#app");
@@ -586,9 +591,12 @@ async function openBook(book) {
     state.activePackage = gamebook;
     state.inventory = progress?.inventory || [];
     state.evidence = progress?.evidence || [];
-    state.currentNodeId = progress?.nodeId || gamebook.metadata.start_node || gamebook.metadata.startNode;
-    saveProgress();
-    renderReader();
+    const savedStats = progress?.stats || {};
+    state.stats = {};
+    for (const def of gamebook.statDefs) {
+      state.stats[def.id] = def.id in savedStats ? savedStats[def.id] : def.start;
+    }
+    enterNode(progress?.nodeId || gamebook.metadata.start_node || gamebook.metadata.startNode);
   } catch (error) {
     app.innerHTML = `<p class="error">Could not open this gamebook. ${escapeHtml(error.message)}</p>`;
   }
@@ -605,7 +613,6 @@ function renderReader() {
     return;
   }
 
-  applyNodeGains(node, gamebook);
   const imageHtml = renderNodeImages(node, gamebook);
   const inventoryPanel = gamebook.inventoryConfig.enabled
     ? renderGainPanel(gamebook.inventoryConfig.label, state.inventory, gamebook)
@@ -615,6 +622,7 @@ function renderReader() {
     : "";
   const bodyHtml = renderNodeBody(node, gamebook);
   const choiceHtml = renderNodeActions(node);
+  const statBar = renderStatBar(gamebook);
   const chips = [
     gamebook.inventoryConfig.enabled ? renderCollectionChip(gamebook.inventoryConfig, state.inventory.length) : "",
     gamebook.evidenceConfig.enabled ? renderCollectionChip(gamebook.evidenceConfig, state.evidence.length) : "",
@@ -622,6 +630,7 @@ function renderReader() {
 
   app.innerHTML = `
     <article class="reader">
+      ${statBar}
       ${chips ? `<div class="chip-row">${chips}</div>` : ""}
       ${imageHtml}
       ${bodyHtml}
@@ -744,6 +753,14 @@ function renderNodeActions(node) {
     return `<button class="primary-button" type="button" data-resolve-battle>Resolve</button>`;
   }
 
+  if (node.type === "check") {
+    return renderCheck(node);
+  }
+
+  if (node.type === "combat") {
+    return renderCombat(node);
+  }
+
   const choices = Array.isArray(node.choices) ? node.choices : [];
   if (choices.length > 0) {
     return renderChoices(choices);
@@ -762,6 +779,53 @@ function renderChoices(choices) {
           ${escapeHtml(choice.text || choice.title || "Continue")}
         </button>
       `).join("")}
+    </div>
+  `;
+}
+
+function renderCheck(node) {
+  const dice = node.dice || node.roll || "1d20";
+  const need = num(node.target ?? node.difficulty ?? node.dc ?? node.against, 10);
+  const result = state.checkResult;
+  if (!result) {
+    return `
+      <section class="panel">
+        <p class="muted">Roll ${escapeHtml(dice)}${escapeHtml(bonusText(node.modifier ?? node.bonus))} — need ${need}+</p>
+      </section>
+      <button class="primary-button" type="button" data-roll-check>Roll</button>
+    `;
+  }
+  return `
+    <section class="panel">
+      <p><strong>${escapeHtml(result.label)}</strong></p>
+      <p class="muted">Rolled ${result.rolls.join(" + ")}${escapeHtml(bonusText(result.bonus))} = ${result.total} vs ${result.need}</p>
+    </section>
+    ${renderChoices([{ text: "Continue", target: result.next }])}
+  `;
+}
+
+function renderCombat(node) {
+  const enemy = node.enemy || node.monster || {};
+  const label = enemy.label || enemy.name || node.enemy_label || "Enemy";
+  const enemyHp = state.enemyHp == null ? num(enemy.hp ?? enemy.health, 1) : state.enemyHp;
+  const logHtml = state.combatLog.map((entry) => `<p class="muted">${escapeHtml(entry)}</p>`).join("");
+  const panel = `
+    <section class="panel">
+      <div class="combat-head"><strong>${escapeHtml(label)}</strong><span class="muted">HP ${enemyHp}</span></div>
+      ${logHtml}
+    </section>
+  `;
+  if (state.combatEnd != null) {
+    return `${panel}${renderChoices([{ text: "Continue", target: state.combatEnd }])}`;
+  }
+  const talk = node.talk_target;
+  const flee = node.flee_target || node.run_target || node.escape_target;
+  return `
+    ${panel}
+    <div class="choice-list">
+      <button class="primary-button" type="button" data-combat-attack>Attack</button>
+      ${talk ? `<button class="secondary-button" type="button" data-target="${escapeAttribute(talk)}">${escapeHtml(node.talk_label || "Talk")}</button>` : ""}
+      ${flee ? `<button class="secondary-button" type="button" data-combat-flee>Run away</button>` : ""}
     </div>
   `;
 }
@@ -795,18 +859,202 @@ function wireReaderActions(node) {
     state.lastBattle = result;
     moveToNode(result.target);
   });
+
+  app.querySelector("[data-roll-check]")?.addEventListener("click", () => rollCheck(node));
+  app.querySelector("[data-combat-attack]")?.addEventListener("click", () => combatRound(node));
+  app.querySelector("[data-combat-flee]")?.addEventListener("click", () => fleeCombat(node));
 }
 
 function moveToNode(target) {
   if (!target) return;
+  enterNode(target);
+}
+
+// Enters a node once: applies its gains and stat changes, resets per-node
+// combat/check state, then renders. Re-renders within a node (combat rounds)
+// call renderReader directly so gains are not re-applied.
+function enterNode(nodeId) {
+  const gamebook = state.activePackage;
+  if (!gamebook) return;
   state.lastBattle = null;
-  state.currentNodeId = target;
+  state.checkResult = null;
+  state.combatLog = [];
+  state.combatEnd = null;
+  state.enemyHp = null;
+  state.currentNodeId = nodeId;
+  const node = gamebook.nodes.get(nodeId);
+  if (node) {
+    applyNodeGains(node, gamebook);
+    if (node.type === "combat") {
+      const enemy = node.enemy || node.monster || {};
+      state.enemyHp = num(enemy.hp ?? enemy.health ?? enemy.hit_points, 1);
+    }
+  }
+  saveProgress();
   renderReader();
 }
 
 function applyNodeGains(node, gamebook) {
   collectItems(node.items || node.inventory || node.gain_inventory || node.gains_inventory, gamebook.inventory, state.inventory);
   collectItems(node.evidence || node.gain_evidence || node.gains_evidence, gamebook.evidence, state.evidence);
+  applyStatChanges(node, gamebook);
+}
+
+function applyStatChanges(node, gamebook) {
+  const defs = new Map((gamebook.statDefs || []).map((def) => [def.id, def]));
+  const setStat = (id, value) => {
+    const def = defs.get(id);
+    let next = value;
+    if (def && def.max != null && next > def.max) next = def.max;
+    if (next < 0) next = 0;
+    state.stats[id] = next;
+  };
+  const add = node.stat_changes || node.adjust_stats || node.gain_stats;
+  if (add && typeof add === "object") {
+    for (const [id, value] of Object.entries(add)) {
+      if (typeof value === "number") setStat(id, (state.stats[id] || 0) + value);
+    }
+  }
+  const set = node.set_stats;
+  if (set && typeof set === "object") {
+    for (const [id, value] of Object.entries(set)) {
+      if (typeof value === "number") setStat(id, value);
+    }
+  }
+}
+
+function renderStatBar(gamebook) {
+  const defs = (gamebook.statDefs || []).filter((def) => !def.hidden);
+  if (!defs.length) return "";
+  return `<div class="chip-row">${defs.map((def) => {
+    const value = state.stats[def.id] ?? def.start;
+    const text = def.max != null ? `${def.label} ${value}/${def.max}` : `${def.label} ${value}`;
+    return `<span class="chip">${escapeHtml(text)}</span>`;
+  }).join("")}</div>`;
+}
+
+function rollDiceList(expression) {
+  const match = String(expression).trim().match(/^(\d*)d(\d+)$/i);
+  const count = Math.max(1, Number(match?.[1] || 1));
+  const sides = Math.max(2, Number(match?.[2] || 6));
+  const rolls = [];
+  for (let index = 0; index < count; index += 1) {
+    rolls.push(Math.floor(Math.random() * sides) + 1);
+  }
+  return rolls;
+}
+
+function d20() {
+  return Math.floor(Math.random() * 20) + 1;
+}
+
+function bonusText(bonus) {
+  const value = Number(bonus || 0);
+  if (value === 0) return "";
+  return value > 0 ? ` +${value}` : ` ${value}`;
+}
+
+function resolveHealthId(node) {
+  if (node.health_stat && node.health_stat in state.stats) return node.health_stat;
+  const def = (state.activePackage.statDefs || []).find((entry) => entry.role === "health");
+  return def ? def.id : (node.health_stat || "hp");
+}
+
+function rollCheck(node) {
+  const dice = node.dice || node.roll || "1d20";
+  const modifier = num(node.modifier ?? node.bonus, 0);
+  const statMod = node.stat_modifier || node.modifier_stat || node.stat;
+  const statBonus = statMod ? (state.stats[statMod] || 0) : 0;
+  const rolls = rollDiceList(dice);
+  const total = rolls.reduce((sum, value) => sum + value, 0) + modifier + statBonus;
+  const need = num(node.target ?? node.difficulty ?? node.dc ?? node.against, 10);
+  const success = total >= need;
+  state.checkResult = {
+    rolls,
+    bonus: modifier + statBonus,
+    total,
+    need,
+    label: success ? (node.success_label || "Success") : (node.failure_label || "Failure"),
+    next: success
+      ? (node.success_target || node.on_success || node.pass_target)
+      : (node.failure_target || node.on_failure || node.fail_target || node.default_target),
+  };
+  renderReader();
+}
+
+function combatRound(node) {
+  const enemy = node.enemy || node.monster || {};
+  const player = node.player || {};
+  const label = enemy.label || enemy.name || node.enemy_label || "Enemy";
+  const healthId = resolveHealthId(node);
+  let enemyHp = state.enemyHp == null ? num(enemy.hp ?? enemy.health, 1) : state.enemyHp;
+  let playerHp = state.stats[healthId] ?? 0;
+  const log = [];
+
+  const enemyHitTarget = num(enemy.hit_target ?? enemy.to_hit ?? enemy.ac ?? enemy.armor_class, 10);
+  const playerRoll = d20();
+  if (playerRoll + num(player.hit_bonus ?? player.to_hit_bonus, 0) >= enemyHitTarget) {
+    const dmg = rollDiceList(player.damage || player.damage_dice || node.player_damage || "1d6")
+      .reduce((sum, value) => sum + value, 0) + num(player.damage_bonus ?? player.bonus, 0);
+    enemyHp -= dmg;
+    log.push(`You hit (rolled ${playerRoll}) for ${dmg} damage.`);
+  } else {
+    log.push(`You miss (rolled ${playerRoll}).`);
+  }
+
+  if (enemyHp > 0) {
+    const monsterHitsOn = num(enemy.hits_on ?? enemy.hit_you_on ?? enemy.attack_target, 11);
+    const enemyRoll = d20();
+    if (enemyRoll >= monsterHitsOn) {
+      const dmg = rollDiceList(enemy.damage || "1d6").reduce((sum, value) => sum + value, 0);
+      playerHp -= dmg;
+      log.push(`${label} hits (rolled ${enemyRoll}) for ${dmg} damage.`);
+    } else {
+      log.push(`${label} misses (rolled ${enemyRoll}).`);
+    }
+  }
+
+  if (enemyHp < 0) enemyHp = 0;
+  if (playerHp < 0) playerHp = 0;
+  state.enemyHp = enemyHp;
+  state.stats[healthId] = playerHp;
+  state.combatLog = log;
+  if (enemyHp <= 0) {
+    state.combatEnd = node.win_target || node.on_win || node.victory_target;
+  } else if (playerHp <= 0) {
+    state.combatEnd = node.lose_target || node.on_lose || node.death_target || node.defeat_target;
+  }
+  saveProgress();
+  renderReader();
+}
+
+function fleeCombat(node) {
+  const enemy = node.enemy || node.monster || {};
+  const label = enemy.label || enemy.name || node.enemy_label || "Enemy";
+  const fleeTarget = node.flee_target || node.run_target || node.escape_target;
+  if (!fleeTarget) return;
+  const healthId = resolveHealthId(node);
+  let playerHp = state.stats[healthId] ?? 0;
+  const monsterHitsOn = num(enemy.hits_on ?? enemy.hit_you_on ?? enemy.attack_target, 11);
+  const enemyRoll = d20();
+  const log = [];
+  if (enemyRoll >= monsterHitsOn) {
+    const dmg = rollDiceList(enemy.damage || "1d6").reduce((sum, value) => sum + value, 0);
+    playerHp -= dmg;
+    log.push(`${label} strikes as you flee for ${dmg} damage.`);
+  } else {
+    log.push("You slip away cleanly.");
+  }
+  if (playerHp < 0) playerHp = 0;
+  state.stats[healthId] = playerHp;
+  saveProgress();
+  if (playerHp <= 0) {
+    state.combatLog = log;
+    state.combatEnd = node.lose_target || node.death_target;
+    renderReader();
+  } else {
+    moveToNode(fleeTarget);
+  }
 }
 
 function collectItems(rawItems, catalog, target) {
@@ -876,6 +1124,7 @@ async function loadGamebookPackage(url) {
     || nodes.some((node) => node.evidence || node.gain_evidence || node.gains_evidence);
   const collections = story.collections || {};
 
+  const systems = story.systems || {};
   return {
     metadata: story.metadata || {},
     nodes: new Map(nodes.map((node) => [node.id, node])),
@@ -883,8 +1132,48 @@ async function loadGamebookPackage(url) {
     evidence: evidenceCatalog,
     inventoryConfig: normalizeCollectionConfig(collections.inventory || collections.items, "Items", hasInventory),
     evidenceConfig: normalizeCollectionConfig(collections.evidence, "Evidence", hasEvidence),
+    statDefs: normalizeStats(story.stats || systems.stats),
     imageUrls,
   };
+}
+
+function normalizeStats(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((entry) => entry && typeof entry === "object" && entry.id)
+    .map((entry) => {
+      const roleText = entry.role || ((entry.is_health || entry.health) ? "health" : "normal");
+      const label = entry.label || entry.name || entry.title || displayTitle(entry.id);
+      const max = firstNum(entry, ["max", "maximum"]);
+      return {
+        id: String(entry.id),
+        label: String(label),
+        start: firstNum(entry, ["start", "value", "initial", "default"]) ?? 0,
+        max: max,
+        role: roleText === "health" ? "health" : "normal",
+        hidden: entry.hidden === true,
+      };
+    });
+}
+
+function displayTitle(id) {
+  return String(id)
+    .replace(/[_-]+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word[0].toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function firstNum(obj, keys) {
+  for (const key of keys) {
+    if (typeof obj[key] === "number") return obj[key];
+  }
+  return undefined;
+}
+
+function num(value, fallback = 0) {
+  return typeof value === "number" ? value : fallback;
 }
 
 function normalizeCollectionConfig(raw, defaultLabel, hasEntries) {
@@ -972,6 +1261,7 @@ function saveProgress() {
     nodeId: state.currentNodeId,
     inventory: state.inventory,
     evidence: state.evidence,
+    stats: state.stats,
   }));
 }
 
