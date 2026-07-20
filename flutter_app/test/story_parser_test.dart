@@ -278,4 +278,52 @@ void main() {
     expect(shop.items[0].price, 10);
     expect(shop.items[1].collection, 'inventory');
   });
+
+  test('map fragments parse with renamable label and node reveals', () {
+    final story = parseStoryGamebook({
+      'metadata': {'title': 'T', 'folder': 't', 'start_node': 'a'},
+      'collections': {
+        'map': {'label': 'Star Chart'},
+      },
+      'map': [
+        {'id': 'entry_hall', 'title': 'Entry Hall', 'image': 'images/hall.jpg'},
+        {'id': 'gallery', 'title': 'Gallery', 'image': 'images/gallery.jpg'},
+      ],
+      'nodes': [
+        {
+          'id': 'a',
+          'type': 'text',
+          'text': 'x',
+          'reveal_map': 'entry_hall',
+          'choices': [
+            {'text': 'On', 'target': 'b'},
+          ],
+        },
+        {
+          'id': 'b',
+          'type': 'text',
+          'text': 'y',
+          'reveal_map': ['gallery'],
+        },
+      ],
+    });
+
+    expect(story.mapConfig.label, 'Star Chart');
+    expect(story.mapConfig.enabled, true);
+    expect(story.mapCatalog.keys.toList(), ['entry_hall', 'gallery']);
+    expect(story.mapCatalog['entry_hall']!.image, 'images/hall.jpg');
+    expect(story.node('a').mapRevealIds, ['entry_hall']);
+    expect(story.node('b').mapRevealIds, ['gallery']);
+  });
+
+  test('map system stays off when a book never uses it', () {
+    final story = parseStoryGamebook({
+      'metadata': {'title': 'T', 'folder': 't', 'start_node': 'a'},
+      'nodes': [
+        {'id': 'a', 'type': 'text', 'text': 'x'},
+      ],
+    });
+    expect(story.mapConfig.enabled, false);
+    expect(story.equipmentConfig.enabled, false);
+  });
 }

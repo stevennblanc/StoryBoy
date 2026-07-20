@@ -350,6 +350,33 @@ With `armor_stat` set, the enemy must roll `1d20 + attack_bonus` >= your effecti
 
 Each item references an `equipment` or `inventory` catalog id plus a `price`; buying deducts the currency stat and grants the item (which the player then equips from the equipment panel). Already-owned items show as owned.
 
+## Revealing Map
+
+A book can define a **map** that fills in as the player explores. Fragments live in a top-level `map` catalog (id, title, image); nodes reveal them on entry with `reveal_map`. The reader assembles the revealed fragments, in catalog order, in a Map panel the player can open any time.
+
+```json
+{
+  "collections": { "map": { "label": "Map" } },
+  "map": [
+    { "id": "frag_entrance", "title": "Entrance", "image": "images/map_entrance.jpg" },
+    { "id": "frag_gallery", "title": "Gallery & Vault", "image": "images/map_gallery.jpg" }
+  ],
+  "nodes": [
+    { "id": "landing", "type": "text", "text": "You step inside.",
+      "reveal_map": "frag_entrance",
+      "choices": [ { "text": "On", "target": "gallery" } ] },
+    { "id": "gallery", "type": "text", "text": "A long gallery.",
+      "reveal_map": ["frag_gallery"] }
+  ]
+}
+```
+
+- Fragment art is any package image — hand-drawn map slices work well. Each mapped room reveals its piece, so the map "draws itself" as the player goes.
+- `reveal_map` accepts a fragment id or a list. Revealing an id already shown does nothing.
+- The map label is renamable (`collections.map.label` — "Star Chart", "Trail"), and the whole system is hidden unless the book defines fragments or reveals them.
+
+This is separate from the `map` **node type** (a location/travel hub with `locations`). One is a picture that assembles as you explore; the other is a branching choice screen. A book can use either, both, or neither.
+
 ## Opt-in and renaming
 
 Every system — collections, equipment, stats, currency, checks, combat, shops — is off until a book uses it, and every label has a default the book can override. A simple story that defines no stats and uses no combat shows none of it. This keeps genres from bleeding UI into each other: a detective book shows "Evidence," a dungeon shows "Health / Armor Class / Gold / Equipment," a travel comedy shows nothing extra. A sci-fi book can rename Armor Class to "Shields", gold to "Credits", and equipment to "Loadout" with pure label overrides.

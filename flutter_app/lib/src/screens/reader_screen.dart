@@ -27,6 +27,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   Set<String> _inventoryIds = {};
   Set<String> _evidenceIds = {};
   Set<String> _equipmentIds = {};
+  Set<String> _mapIds = {};
   final Map<String, int> _stats = {};
   final Map<String, String> _equippedBySlot = {};
   BattleResult? _battleResult;
@@ -38,6 +39,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   bool _showInventory = false;
   bool _showEvidence = false;
   bool _showEquipment = false;
+  bool _showMap = false;
   String? _expandedItemId;
   String? _error;
   final _random = Random();
@@ -69,6 +71,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
         _inventoryIds = progress.collectedIds(story.id, 'inventory');
         _evidenceIds = progress.collectedIds(story.id, 'evidence');
         _equipmentIds = progress.collectedIds(story.id, 'equipment');
+        _mapIds = progress.collectedIds(story.id, 'map');
         _stats.clear();
         for (final stat in story.stats) {
           _stats[stat.id] = savedStats[stat.id] ?? stat.start;
@@ -94,12 +97,14 @@ class _ReaderScreenState extends State<ReaderScreen> {
     final inventoryIds = {..._inventoryIds, ...node.inventoryGained.map((item) => item.id)};
     final evidenceIds = {..._evidenceIds, ...node.evidenceGained.map((item) => item.id)};
     final equipmentIds = {..._equipmentIds, ...node.equipmentGained.map((item) => item.id)};
+    final mapIds = {..._mapIds, ...node.mapRevealIds};
     _applyStatChanges(story, node.statChanges);
     final progress = widget.model.progress;
     progress.saveCurrentNode(story.id, nodeId);
     progress.saveCollectedIds(story.id, 'inventory', inventoryIds);
     progress.saveCollectedIds(story.id, 'evidence', evidenceIds);
     progress.saveCollectedIds(story.id, 'equipment', equipmentIds);
+    progress.saveCollectedIds(story.id, 'map', mapIds);
     progress.saveStats(story.id, _stats);
 
     setState(() {
@@ -107,6 +112,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
       _inventoryIds = inventoryIds;
       _evidenceIds = evidenceIds;
       _equipmentIds = equipmentIds;
+      _mapIds = mapIds;
       _battleResult = null;
       _checkOutcome = null;
       _enemyHp = node.combat?.enemyHp;
@@ -173,6 +179,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     _inventoryIds = {};
     _evidenceIds = {};
     _equipmentIds = {};
+    _mapIds = {};
     _equippedBySlot.clear();
     _stats.clear();
     for (final stat in story.stats) {
@@ -366,6 +373,16 @@ class _ReaderScreenState extends State<ReaderScreen> {
     ];
   }
 
+  /// Revealed map fragments, in the catalog's defined order.
+  List<CollectionItem> get _revealedMap {
+    final story = _story;
+    if (story == null) return const [];
+    return [
+      for (final entry in story.mapCatalog.entries)
+        if (_mapIds.contains(entry.key)) entry.value,
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final story = _story;
@@ -393,6 +410,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
                         _collectionPanel(story.inventoryConfig.label, _collectedInventory),
                       if (_showEquipment && story.equipmentConfig.enabled)
                         _equipmentPanel(story.equipmentConfig.label, _collectedEquipment),
+                      if (_showMap && story.mapConfig.enabled)
+                        _mapPanel(story.mapConfig.label, _revealedMap),
                       if (_showEvidence && story.evidenceConfig.enabled)
                         _collectionPanel(story.evidenceConfig.label, _collectedEvidence),
                       for (final image in node.images) _storyImage(image),
@@ -454,6 +473,12 @@ class _ReaderScreenState extends State<ReaderScreen> {
         child: Text(story.equipmentConfig.buttonLabel(_collectedEquipment.length)),
       ));
     }
+    if (story.mapConfig.enabled) {
+      buttons.add(TextButton(
+        onPressed: _revealedMap.isEmpty ? null : () => setState(() => _showMap = !_showMap),
+        child: Text(story.mapConfig.buttonLabel(_revealedMap.length)),
+      ));
+    }
     if (story.evidenceConfig.enabled) {
       buttons.add(TextButton(
         onPressed:
@@ -480,6 +505,38 @@ class _ReaderScreenState extends State<ReaderScreen> {
           Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           for (final item in items) _collectionEntry(item),
+        ],
+      ),
+    );
+  }
+
+  Widget _mapPanel(String title, List<CollectionItem> fragments) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: SbColors.surface,
+        border: Border.all(color: SbColors.line),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          for (final fragment in fragments) ...[
+            if (fragment.title.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6, bottom: 4),
+                child: Text(fragment.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            if (fragment.image != null) _assetImage(fragment.image!),
+            if (fragment.description.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(fragment.description, style: mutedStyle),
+              ),
+          ],
         ],
       ),
     );

@@ -29,6 +29,7 @@ StoryGamebook parseStoryGamebook(Map<String, dynamic> source) {
   final inventoryCatalog = _parseCatalog(source['inventory']);
   final evidenceCatalog = _parseCatalog(source['evidence']);
   final equipmentCatalog = _parseCatalog(source['equipment']);
+  final mapCatalog = _parseCatalog(source['map'] ?? source['map_fragments'] ?? source['maps']);
   for (final node in nodes.values) {
     for (final item in node.inventoryGained) {
       inventoryCatalog.putIfAbsent(item.id, () => item);
@@ -54,6 +55,7 @@ StoryGamebook parseStoryGamebook(Map<String, dynamic> source) {
     evidenceCatalog: evidenceCatalog,
     stats: _parseStats(source['stats'] ?? systems['stats']),
     equipmentCatalog: equipmentCatalog,
+    mapCatalog: mapCatalog,
     inventoryConfig: _parseCollectionConfig(
       (collections['inventory'] ?? collections['items']) as Map?,
       defaultLabel: 'Items',
@@ -68,6 +70,12 @@ StoryGamebook parseStoryGamebook(Map<String, dynamic> source) {
       (collections['equipment'] ?? collections['gear']) as Map?,
       defaultLabel: 'Equipment',
       hasEntries: equipmentCatalog.isNotEmpty,
+    ),
+    mapConfig: _parseCollectionConfig(
+      collections['map'] as Map?,
+      defaultLabel: 'Map',
+      hasEntries: mapCatalog.isNotEmpty ||
+          nodes.values.any((node) => node.mapRevealIds.isNotEmpty),
     ),
   );
 }
@@ -182,6 +190,7 @@ StoryNode _parseNode(Map<String, dynamic> json, {String? fallbackId}) {
         inventoryGained: _parseGained(json, _inventoryKeys),
         evidenceGained: _parseGained(json, _evidenceKeys),
         equipmentGained: _parseGained(json, _equipmentKeys),
+        mapRevealIds: _parseMapReveals(json),
         statChanges: _parseStatChanges(json),
       );
   }
@@ -196,6 +205,7 @@ StoryNode _parseCheckNode(Map<String, dynamic> json, String id) {
     inventoryGained: _parseGained(json, _inventoryKeys),
     evidenceGained: _parseGained(json, _evidenceKeys),
     equipmentGained: _parseGained(json, _equipmentKeys),
+    mapRevealIds: _parseMapReveals(json),
     statChanges: _parseStatChanges(json),
     check: CheckConfig(
       dice: _firstString(json, ['dice', 'roll']) ?? '1d20',
@@ -233,6 +243,7 @@ StoryNode _parseShopNode(Map<String, dynamic> json, String id) {
     inventoryGained: _parseGained(json, _inventoryKeys),
     evidenceGained: _parseGained(json, _evidenceKeys),
     equipmentGained: _parseGained(json, _equipmentKeys),
+    mapRevealIds: _parseMapReveals(json),
     statChanges: _parseStatChanges(json),
     shop: ShopConfig(
       currencyStatId: _firstString(json, ['currency_stat', 'currency', 'cost_stat']) ?? 'gold',
@@ -254,6 +265,7 @@ StoryNode _parseCombatNode(Map<String, dynamic> json, String id) {
     inventoryGained: _parseGained(json, _inventoryKeys),
     evidenceGained: _parseGained(json, _evidenceKeys),
     equipmentGained: _parseGained(json, _equipmentKeys),
+    mapRevealIds: _parseMapReveals(json),
     statChanges: _parseStatChanges(json),
     combat: CombatConfig(
       enemyLabel: _firstString(enemy, ['label', 'name', 'title']) ??
@@ -313,6 +325,7 @@ StoryNode _parseLoreNode(Map<String, dynamic> json, String id) {
     inventoryGained: _parseGained(json, _inventoryKeys),
     evidenceGained: _parseGained(json, _evidenceKeys),
     equipmentGained: _parseGained(json, _equipmentKeys),
+    mapRevealIds: _parseMapReveals(json),
     statChanges: _parseStatChanges(json),
   );
 }
@@ -329,6 +342,7 @@ StoryNode _parsePuzzleNode(Map<String, dynamic> json, String id) {
     inventoryGained: _parseGained(json, _inventoryKeys),
     evidenceGained: _parseGained(json, _evidenceKeys),
     equipmentGained: _parseGained(json, _equipmentKeys),
+    mapRevealIds: _parseMapReveals(json),
     statChanges: _parseStatChanges(json),
     acceptedAnswers: answers,
     correctTargetId: _firstString(json, ['correct_target', 'correctTarget']),
@@ -356,6 +370,7 @@ StoryNode _parseCollectionNode(Map<String, dynamic> json, String id, String type
     inventoryGained: _parseGained(json, _inventoryKeys),
     evidenceGained: _parseGained(json, _evidenceKeys),
     equipmentGained: _parseGained(json, _equipmentKeys),
+    mapRevealIds: _parseMapReveals(json),
     statChanges: _parseStatChanges(json),
   );
 }
@@ -379,6 +394,7 @@ StoryNode _parseMapNode(Map<String, dynamic> json, String id) {
     inventoryGained: _parseGained(json, _inventoryKeys),
     evidenceGained: _parseGained(json, _evidenceKeys),
     equipmentGained: _parseGained(json, _equipmentKeys),
+    mapRevealIds: _parseMapReveals(json),
     statChanges: _parseStatChanges(json),
     mapLocations: locations,
   );
@@ -405,6 +421,7 @@ StoryNode _parseBattleNode(Map<String, dynamic> json, String id) {
     inventoryGained: _parseGained(json, _inventoryKeys),
     evidenceGained: _parseGained(json, _evidenceKeys),
     equipmentGained: _parseGained(json, _equipmentKeys),
+    mapRevealIds: _parseMapReveals(json),
     statChanges: _parseStatChanges(json),
     battle: BattleConfig(
       playerDice: _firstString(battleJson, ['player_dice', 'playerDice']) ?? '1d6',
@@ -532,6 +549,15 @@ int? _firstInt(Map<String, dynamic> json, List<String> keys) {
     if (value is num) return value.toInt();
   }
   return null;
+}
+
+List<String> _parseMapReveals(Map<String, dynamic> json) {
+  final raw = json['reveal_map'] ?? json['map_reveal'] ?? json['reveals_map'] ?? json['reveal_fragment'];
+  if (raw is String && raw.trim().isNotEmpty) return [raw.trim()];
+  if (raw is List) {
+    return raw.whereType<String>().map((value) => value.trim()).where((value) => value.isNotEmpty).toList();
+  }
+  return const [];
 }
 
 String normalizeAnswer(String value) {

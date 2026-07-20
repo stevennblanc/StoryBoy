@@ -72,6 +72,7 @@ class ProgressStore {
     await _prefs.remove('progress.$bookId.evidence');
     await _prefs.remove('progress.$bookId.equipment');
     await _prefs.remove('progress.$bookId.equipped');
+    await _prefs.remove('progress.$bookId.map');
     await _prefs.remove('progress.$bookId.stats');
   }
 

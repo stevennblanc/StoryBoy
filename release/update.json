@@ -1,6 +1,6 @@
 {
-  "versionCode": 26,
-  "versionName": "0.23.0",
+  "versionCode": 27,
+  "versionName": "0.24.0",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "New adventure systems: gold (or any renamable currency), equipment you buy and equip that changes your stats and combat, and shop nodes. Equipped armor raises your defense and a weapon hits harder. Every system stays opt-in and renamable, so simpler books show none of it."
+  "releaseNotes": "New: a revealing Map. Books can define map fragments that fill in room by room as you explore, assembled in a Map panel you can open any time. Renamable and opt-in like every other system."
 }

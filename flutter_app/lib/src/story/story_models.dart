@@ -13,6 +13,8 @@ class StoryGamebook {
     required this.evidenceConfig,
     this.equipmentCatalog = const {},
     this.equipmentConfig = const CollectionConfig(label: 'Equipment'),
+    this.mapCatalog = const {},
+    this.mapConfig = const CollectionConfig(label: 'Map'),
     this.stats = const [],
   });
 
@@ -23,9 +25,14 @@ class StoryGamebook {
   final Map<String, CollectionItem> inventoryCatalog;
   final Map<String, CollectionItem> evidenceCatalog;
   final Map<String, CollectionItem> equipmentCatalog;
+
+  /// Ordered catalog of map fragments (id/title/image). Revealed as the player
+  /// explores; the reader assembles the revealed pieces in this order.
+  final Map<String, CollectionItem> mapCatalog;
   final CollectionConfig inventoryConfig;
   final CollectionConfig evidenceConfig;
   final CollectionConfig equipmentConfig;
+  final CollectionConfig mapConfig;
 
   /// Book-defined numeric stats (HP, Armor Class, gold, or any renamed
   /// equivalent). Empty when the book uses no stat systems.
@@ -95,6 +102,7 @@ class StoryNode {
     this.inventoryGained = const [],
     this.evidenceGained = const [],
     this.equipmentGained = const [],
+    this.mapRevealIds = const [],
     this.mapLocations = const [],
     this.battle,
     this.check,
@@ -114,6 +122,9 @@ class StoryNode {
   final List<CollectionItem> inventoryGained;
   final List<CollectionItem> evidenceGained;
   final List<CollectionItem> equipmentGained;
+
+  /// Map fragment ids revealed when this node is entered.
+  final List<String> mapRevealIds;
   final List<MapLocation> mapLocations;
   final BattleConfig? battle;
   final CheckConfig? check;

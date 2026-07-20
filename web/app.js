@@ -28,6 +28,7 @@ const state = {
   evidence: [],
   equipment: [],
   equippedBySlot: {},
+  map: [],
   stats: {},
   checkResult: null,
   enemyHp: null,
@@ -597,6 +598,7 @@ async function openBook(book) {
     state.evidence = progress?.evidence || [];
     state.equipment = progress?.equipment || [];
     state.equippedBySlot = progress?.equippedBySlot || {};
+    state.map = progress?.map || [];
     const savedStats = progress?.stats || {};
     state.stats = {};
     for (const def of gamebook.statDefs) {
@@ -626,6 +628,9 @@ function renderReader() {
   const equipmentPanel = gamebook.equipmentConfig.enabled
     ? renderEquipmentPanel(gamebook.equipmentConfig.label, state.equipment)
     : "";
+  const mapPanel = gamebook.mapConfig.enabled
+    ? renderMapPanel(gamebook.mapConfig.label, gamebook)
+    : "";
   const evidencePanel = gamebook.evidenceConfig.enabled
     ? renderGainPanel(gamebook.evidenceConfig.label, state.evidence, gamebook)
     : "";
@@ -635,6 +640,7 @@ function renderReader() {
   const chips = [
     gamebook.inventoryConfig.enabled ? renderCollectionChip(gamebook.inventoryConfig, state.inventory.length) : "",
     gamebook.equipmentConfig.enabled ? renderCollectionChip(gamebook.equipmentConfig, state.equipment.length) : "",
+    gamebook.mapConfig.enabled ? renderCollectionChip(gamebook.mapConfig, state.map.length) : "",
     gamebook.evidenceConfig.enabled ? renderCollectionChip(gamebook.evidenceConfig, state.evidence.length) : "",
   ].join("");
 
@@ -646,6 +652,7 @@ function renderReader() {
       ${bodyHtml}
       ${inventoryPanel}
       ${equipmentPanel}
+      ${mapPanel}
       ${evidencePanel}
       ${choiceHtml}
       <button class="secondary-button" type="button" data-close-reader>Library</button>
@@ -752,6 +759,23 @@ function renderEquipmentPanel(label, items) {
       ? `<button class="secondary-button" type="button" data-equip="${escapeAttribute(item.id)}">${equipped ? "Unequip" : "Equip"}</button>`
       : "";
     return `<div class="shop-row"><div>${summary}</div>${button}</div>`;
+  }).join("");
+  return `<section class="panel"><h3>${escapeHtml(label)}</h3>${rows}</section>`;
+}
+
+function renderMapPanel(label, gamebook) {
+  const order = gamebook.mapOrder.length ? gamebook.mapOrder : state.map;
+  const fragments = order.filter((id) => state.map.includes(id));
+  if (!fragments.length) return "";
+  const rows = fragments.map((id) => {
+    const fragment = gamebook.mapCatalog.get(id);
+    if (!fragment) return "";
+    const src = fragment.image ? gamebook.imageUrls.get(fragment.image) : null;
+    return `
+      ${fragment.title ? `<p class="reader-text"><strong>${escapeHtml(fragment.title)}</strong></p>` : ""}
+      ${src ? `<img class="reader-image" src="${escapeAttribute(src)}" alt="">` : ""}
+      ${fragment.description ? `<p class="muted">${escapeHtml(fragment.description)}</p>` : ""}
+    `;
   }).join("");
   return `<section class="panel"><h3>${escapeHtml(label)}</h3>${rows}</section>`;
 }
@@ -997,7 +1021,17 @@ function applyNodeGains(node, gamebook) {
   collectItems(node.items || node.inventory || node.gain_inventory || node.gains_inventory, gamebook.inventory, state.inventory);
   collectItems(node.evidence || node.gain_evidence || node.gains_evidence, gamebook.evidence, state.evidence);
   collectItems(node.equipment || node.gain_equipment || node.gains_equipment || node.gear, gamebook.equipment, state.equipment);
+  revealMap(node);
   applyStatChanges(node, gamebook);
+}
+
+function revealMap(node) {
+  const raw = node.reveal_map || node.map_reveal || node.reveals_map || node.reveal_fragment;
+  if (!raw) return;
+  const ids = Array.isArray(raw) ? raw : [raw];
+  for (const id of ids) {
+    if (typeof id === "string" && id && !state.map.includes(id)) state.map.push(id);
+  }
 }
 
 function effectiveStat(statId) {
@@ -1261,12 +1295,15 @@ async function loadGamebookPackage(url) {
   const inventoryCatalog = catalogMap(story.inventory);
   const evidenceCatalog = catalogMap(story.evidence);
   const equipmentCatalog = catalogMap(story.equipment);
+  const mapCatalog = catalogMap(story.map || story.map_fragments || story.maps);
   const hasInventory = inventoryCatalog.size > 0
     || nodes.some((node) => node.items || node.inventory || node.gain_inventory || node.gains_inventory);
   const hasEvidence = evidenceCatalog.size > 0
     || nodes.some((node) => node.evidence || node.gain_evidence || node.gains_evidence);
   const hasEquipment = equipmentCatalog.size > 0
     || nodes.some((node) => node.equipment || node.gain_equipment || node.gains_equipment || node.gear);
+  const hasMap = mapCatalog.size > 0
+    || nodes.some((node) => node.reveal_map || node.map_reveal || node.reveals_map || node.reveal_fragment);
   const collections = story.collections || {};
 
   const systems = story.systems || {};
@@ -1276,9 +1313,13 @@ async function loadGamebookPackage(url) {
     inventory: inventoryCatalog,
     evidence: evidenceCatalog,
     equipment: equipmentCatalog,
+    mapCatalog: mapCatalog,
+    mapOrder: (Array.isArray(story.map || story.map_fragments || story.maps) ? (story.map || story.map_fragments || story.maps) : [])
+      .filter((entry) => entry && entry.id).map((entry) => entry.id),
     inventoryConfig: normalizeCollectionConfig(collections.inventory || collections.items, "Items", hasInventory),
     evidenceConfig: normalizeCollectionConfig(collections.evidence, "Evidence", hasEvidence),
     equipmentConfig: normalizeCollectionConfig(collections.equipment || collections.gear, "Equipment", hasEquipment),
+    mapConfig: normalizeCollectionConfig(collections.map, "Map", hasMap),
     statDefs: normalizeStats(story.stats || systems.stats),
     imageUrls,
   };
@@ -1411,6 +1452,7 @@ function saveProgress() {
     evidence: state.evidence,
     equipment: state.equipment,
     equippedBySlot: state.equippedBySlot,
+    map: state.map,
     stats: state.stats,
   }));
 }
