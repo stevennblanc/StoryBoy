@@ -54,6 +54,7 @@ StoryGamebook parseStoryGamebook(Map<String, dynamic> source) {
     inventoryCatalog: inventoryCatalog,
     evidenceCatalog: evidenceCatalog,
     stats: _parseStats(source['stats'] ?? systems['stats']),
+    characters: _parseCharacters(source['characters']),
     equipmentCatalog: equipmentCatalog,
     mapCatalog: mapCatalog,
     inventoryConfig: _parseCollectionConfig(
@@ -93,6 +94,15 @@ List<StatDef> _parseStats(dynamic raw) {
             ? 'health'
             : (json['is_armor'] == true || json['armor'] == true ? 'armor' : 'normal'));
     final label = _firstString(json, ['label', 'name', 'title']) ?? _displayTitle(id);
+    final tableRaw = (json['modifier_table'] ?? json['modifiers']) as List?;
+    final table = (tableRaw ?? const []).map((raw) {
+      final band = (raw as Map).cast<String, dynamic>();
+      return ModifierBand(
+        min: _firstInt(band, ['min', 'from']) ?? 0,
+        max: _firstInt(band, ['max', 'to']) ?? 0,
+        mod: _firstInt(band, ['mod', 'modifier', 'bonus']) ?? 0,
+      );
+    }).toList();
     stats.add(StatDef(
       id: id,
       label: label,
@@ -104,9 +114,43 @@ List<StatDef> _parseStats(dynamic raw) {
         _ => StatRole.normal,
       },
       hidden: json['hidden'] == true,
+      abilityScore: json['ability'] == true || json['ability_score'] == true || table.isNotEmpty,
+      modifierTable: table,
     ));
   }
   return stats;
+}
+
+List<CharacterOption> _parseCharacters(dynamic raw) {
+  if (raw is! List) return const [];
+  final characters = <CharacterOption>[];
+  for (final entry in raw) {
+    if (entry is! Map) continue;
+    final json = entry.cast<String, dynamic>();
+    final id = (json['id'] as String?)?.trim() ?? '';
+    if (id.isEmpty) continue;
+    final statsRaw = (json['stats'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final stats = <String, int>{};
+    statsRaw.forEach((key, value) {
+      if (value is num) stats[key] = value.toInt();
+    });
+    final equippedRaw = (json['equipped'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final equipped = <String, String>{};
+    equippedRaw.forEach((slot, value) {
+      if (value is String) equipped[slot] = value;
+    });
+    characters.add(CharacterOption(
+      id: id,
+      name: _firstString(json, ['name', 'title', 'label']) ?? _displayTitle(id),
+      description: (json['description'] as String?) ?? '',
+      image: ((json['image'] as String?) ?? '').isEmpty ? null : json['image'] as String,
+      stats: stats,
+      equipmentIds: ((json['equipment'] ?? json['gear']) as List?)?.whereType<String>().toList() ?? const [],
+      equippedBySlot: equipped,
+      startNodeId: _firstString(json, ['start_node', 'startNode']),
+    ));
+  }
+  return characters;
 }
 
 List<StatChange> _parseStatChanges(Map<String, dynamic> json) {
@@ -282,6 +326,8 @@ StoryNode _parseCombatNode(Map<String, dynamic> json, String id) {
       playerDamageBonus:
           _firstInt(player, ['damage_bonus', 'bonus']) ?? _firstInt(json, ['player_damage_bonus']) ?? 0,
       playerHitBonus: _firstInt(player, ['hit_bonus', 'to_hit_bonus']) ?? 0,
+      hitStatId: _firstString(player, ['hit_stat', 'to_hit_stat']) ?? _firstString(json, ['hit_stat']),
+      damageStatId: _firstString(player, ['damage_stat']) ?? _firstString(json, ['damage_stat']),
       monsterHitsOn: _firstInt(enemy, ['hits_on', 'hit_you_on', 'attack_target']) ??
           _firstInt(json, ['monster_hits_on']) ??
           11,

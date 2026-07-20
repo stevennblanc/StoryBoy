@@ -64,6 +64,12 @@ class ProgressStore {
     );
   }
 
+  String? chosenCharacter(String bookId) => _prefs.getString('progress.$bookId.character');
+
+  Future<void> saveChosenCharacter(String bookId, String characterId) async {
+    await _prefs.setString('progress.$bookId.character', characterId);
+  }
+
   bool hasProgress(String bookId) => currentNode(bookId) != null;
 
   Future<void> reset(String bookId) async {
@@ -74,6 +80,7 @@ class ProgressStore {
     await _prefs.remove('progress.$bookId.equipped');
     await _prefs.remove('progress.$bookId.map');
     await _prefs.remove('progress.$bookId.stats');
+    await _prefs.remove('progress.$bookId.character');
   }
 
   double get fontScale => _prefs.getDouble('settings.fontScale') ?? 1.0;

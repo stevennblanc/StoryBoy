@@ -445,6 +445,26 @@ h3 {
   margin-bottom: 4px;
 }
 
+.character-list {
+  display: grid;
+  gap: 12px;
+  margin: 8px 0 16px;
+}
+
+.character-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.character-card h3 {
+  margin: 8px 0 4px;
+}
+
 .shop-row {
   display: flex;
   justify-content: space-between;

@@ -377,6 +377,50 @@ A book can define a **map** that fills in as the player explores. Fragments live
 
 This is separate from the `map` **node type** (a location/travel hub with `locations`). One is a picture that assembles as you explore; the other is a branching choice screen. A book can use either, both, or neither.
 
+## Ability Scores and Character Choice
+
+A stat can be an **ability score**: a raw value (typically 1–18) that maps to a small modifier. Combat and checks add the *modifier*, not the raw value, so a strong warrior hits harder and a clever witch reads wards better.
+
+```json
+{
+  "stats": [
+    { "id": "str", "label": "Strength", "start": 10, "ability": true },
+    { "id": "int", "label": "Intellect", "start": 10, "ability": true }
+  ]
+}
+```
+
+StoryBoy's default tiers (its own numbers): ≤3 → −3, 4–5 → −2, 6–8 → −1, 9–12 → 0, 13–15 → +1, 16–17 → +2, ≥18 → +3. Override per stat with a `modifier_table` of `{ min, max, mod }` bands. A plain (non-ability) stat's own value is its modifier, so existing `stat_modifier` checks are unchanged.
+
+Feed ability scores into play:
+
+- **Combat**: `player.hit_stat` / `player.damage_stat` add that stat's modifier to the to-hit roll / damage.
+- **Checks**: `stat_modifier` adds the referenced stat's modifier.
+
+**Character choice.** A book may offer pre-made protagonists at the start with a top-level `characters` list. Choosing one seeds its starting stats and gear, then the story speaks to the player as that character.
+
+```json
+{
+  "characters": [
+    {
+      "id": "warrior",
+      "name": "Dain the Warrior",
+      "description": "Strong, but no scholar.",
+      "image": "images/dain.jpg",
+      "stats": { "hp": 14, "str": 16, "dex": 11, "int": 9 },
+      "equipment": ["iron_sword", "plate"],
+      "equipped": { "weapon": "iron_sword", "armor": "plate" },
+      "start_node": "crossroads"
+    }
+  ]
+}
+```
+
+- `stats` override the starting values of the named stats (others keep their defaults).
+- `equipment` grants catalog item ids; `equipped` sets active items per slot.
+- `start_node` is optional (defaults to `metadata.start_node`).
+- When a book defines no `characters`, there is no selection screen — the player simply is the story's character, defined by the stats and prose.
+
 ## Opt-in and renaming
 
 Every system — collections, equipment, stats, currency, checks, combat, shops — is off until a book uses it, and every label has a default the book can override. A simple story that defines no stats and uses no combat shows none of it. This keeps genres from bleeding UI into each other: a detective book shows "Evidence," a dungeon shows "Health / Armor Class / Gold / Equipment," a travel comedy shows nothing extra. A sci-fi book can rename Armor Class to "Shields", gold to "Credits", and equipment to "Loadout" with pure label overrides.

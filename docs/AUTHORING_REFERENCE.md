@@ -49,8 +49,14 @@ Stats are entirely author-defined. Each entry in the top-level `stats[]`:
 | `max` | Optional cap; shows as `value/max`. | none |
 | `role` | `health` (zero ends the run), `armor` (combat defense), or `normal`. | `normal` |
 | `hidden` | Track without showing in the bar. | `false` |
+| `ability` | Ability score: value maps to a modifier via the tier table. | `false` |
+| `modifier_table` | Custom `{ min, max, mod }` bands (implies `ability`). | default tiers |
 
-Nodes change stats with `stat_changes{ id: delta }` (add/subtract) and `set_stats{ id: value }` (absolute), clamped to `[0, max]`. Checks can add a stat's value to the roll via `stat_modifier`.
+Nodes change stats with `stat_changes{ id: delta }` (add/subtract) and `set_stats{ id: value }` (absolute), clamped to `[0, max]`. Checks add a stat's **modifier** to the roll via `stat_modifier` (for a plain stat that's its value; for an ability score, its tiered modifier). Default ability tiers: ≤3 −3, 4–5 −2, 6–8 −1, 9–12 0, 13–15 +1, 16–17 +2, ≥18 +3.
+
+### Characters (optional)
+
+A top-level `characters[]` list offers pre-made protagonists at the start. Each: `id`, `name`, `description`, optional `image`, `stats{}` (starting overrides), `equipment[]` (granted ids), `equipped{}` (slot→id), optional `start_node`. No list = no selection screen.
 
 ### Equipment items
 
@@ -71,7 +77,7 @@ Top-level `map[]` entries are `{ id, title, image }`. Nodes reveal them with `re
 ## Combat quick fields
 
 - `enemy`: `label`, `hp`, `hit_target` (player must roll ≥ this to hit), `damage`, `attack_bonus`.
-- `player`: `damage`, `damage_bonus`, `hit_bonus` (overridden by an equipped weapon).
+- `player`: `damage`, `damage_bonus`, `hit_bonus` (overridden by an equipped weapon), and optional `hit_stat` / `damage_stat` (add that stat's modifier).
 - `armor_stat`: the stat the enemy must beat to hit you (so armor matters); falls back to `monster_hits_on`.
 - `health_stat`: the stat damage reduces (defaults to the `health`-role stat).
 - Targets: `win_target`, `lose_target` (death), optional `flee_target`, `talk_target`.

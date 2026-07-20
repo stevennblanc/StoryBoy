@@ -2,13 +2,11 @@
 
 Planned work, captured so it isn't lost. Nothing here is built yet unless noted.
 
-## Character stats: author-defined ability scores
+## Character stats: author-defined ability scores — SHIPPED (0.25.0)
 
 **Goal:** let a gamebook give the player a light layer of tabletop-style control over gear and outcomes, without character creation. The story author defines the character; the engine just has to be flexible enough for many worlds (a warrior, a wizard, a cowboy, a space engineer).
 
-**Where we are:** the stat system is already fully author-defined — any named numeric stats with overridable labels, a `health` and `armor` role, and `stat_modifier` on checks. A book can already define STR/DEX/CON/INT/WIS/CHA, or Shields/Plating/Focus, etc. What is *not* built is an ability-score→modifier convention and combat reading those modifiers.
-
-**Planned addition (design, not built):**
+**Built in 0.25.0:** a stat can be flagged `ability: true` (or given a `modifier_table`) to map its value to a tiered modifier; combat `hit_stat`/`damage_stat` and check `stat_modifier` add that modifier. And **character choice** shipped too: a `characters[]` list offers pre-made protagonists that seed stats and gear. See `GAMEBOOK_FORMAT.md` and the demo book *The Ashen Crossroads*. The design that was implemented:
 
 - An optional `modifier` mapping on a stat, so a 1–18-style score yields a small bonus by tier. StoryBoy will ship a **default tier table of its own** (an author can override it); the concept of "ability score → modifier" is a common game mechanic, but our specific numbers are ours, e.g.:
 

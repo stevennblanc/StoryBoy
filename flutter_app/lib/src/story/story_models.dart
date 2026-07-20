@@ -16,6 +16,7 @@ class StoryGamebook {
     this.mapCatalog = const {},
     this.mapConfig = const CollectionConfig(label: 'Map'),
     this.stats = const [],
+    this.characters = const [],
   });
 
   final String id;
@@ -37,6 +38,16 @@ class StoryGamebook {
   /// Book-defined numeric stats (HP, Armor Class, gold, or any renamed
   /// equivalent). Empty when the book uses no stat systems.
   final List<StatDef> stats;
+
+  /// Pre-made protagonists offered at the start. Empty = no character choice.
+  final List<CharacterOption> characters;
+
+  StatDef? statById(String id) {
+    for (final stat in stats) {
+      if (stat.id == id) return stat;
+    }
+    return null;
+  }
 
   StatDef? get healthStat => _statByRole(StatRole.health);
   StatDef? get armorStat => _statByRole(StatRole.armor);
@@ -68,6 +79,8 @@ class StatDef {
     this.max,
     this.role = StatRole.normal,
     this.hidden = false,
+    this.abilityScore = false,
+    this.modifierTable = const [],
   });
 
   final String id;
@@ -77,10 +90,71 @@ class StatDef {
   final StatRole role;
   final bool hidden;
 
+  /// When true this stat is an ability score: its raw value (typically 1-18)
+  /// maps to a small modifier via [modifierTable] (or StoryBoy's default
+  /// tiers). When false the stat's own value is its modifier.
+  final bool abilityScore;
+
+  /// Optional custom score->modifier bands ([min, max, mod]); overrides the
+  /// default table.
+  final List<ModifierBand> modifierTable;
+
+  /// The bonus this stat contributes when referenced by a check or combat.
+  int modifier(int value) {
+    if (!abilityScore) return value;
+    for (final band in modifierTable) {
+      if (value >= band.min && value <= band.max) return band.mod;
+    }
+    // StoryBoy default tiers (our own numbers).
+    if (value <= 3) return -3;
+    if (value <= 5) return -2;
+    if (value <= 8) return -1;
+    if (value <= 12) return 0;
+    if (value <= 15) return 1;
+    if (value <= 17) return 2;
+    return 3;
+  }
+
   String display(int value) {
+    if (abilityScore) {
+      final mod = modifier(value);
+      return '$label $value (${mod >= 0 ? '+$mod' : '$mod'})';
+    }
     if (max != null) return '$label $value/$max';
     return '$label $value';
   }
+}
+
+class ModifierBand {
+  const ModifierBand({required this.min, required this.max, required this.mod});
+  final int min;
+  final int max;
+  final int mod;
+}
+
+/// A pre-made protagonist a book may offer at the start. Choosing one seeds
+/// starting stats and gear; the story then speaks to the player as that
+/// character.
+class CharacterOption {
+  const CharacterOption({
+    required this.id,
+    required this.name,
+    this.description = '',
+    this.image,
+    this.stats = const {},
+    this.equipmentIds = const [],
+    this.equippedBySlot = const {},
+    this.startNodeId,
+  });
+
+  final String id;
+  final String name;
+  final String description;
+  final String? image;
+  final Map<String, int> stats;
+  final List<String> equipmentIds;
+  final Map<String, String> equippedBySlot;
+  final String? startNodeId;
 }
 
 /// A change applied to a stat when a node is entered.
@@ -213,6 +287,8 @@ class CombatConfig {
     required this.playerDamage,
     required this.playerDamageBonus,
     required this.playerHitBonus,
+    this.hitStatId,
+    this.damageStatId,
     required this.monsterHitsOn,
     required this.winTargetId,
     required this.loseTargetId,
@@ -233,6 +309,11 @@ class CombatConfig {
   final String playerDamage;
   final int playerDamageBonus;
   final int playerHitBonus;
+
+  /// Optional stats whose modifier is added to the player's to-hit / damage,
+  /// so a character's ability scores matter in combat.
+  final String? hitStatId;
+  final String? damageStatId;
 
   /// Number the enemy must roll (1d20) to hit the player.
   final int monsterHitsOn;

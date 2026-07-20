@@ -32,6 +32,17 @@
       "downloadUrl": "/store/the-sunken-vault.gbk",
       "posterUrl": "/store/the-sunken-vault-poster.jpg",
       "bannerUrl": "/store/the-sunken-vault-banner.jpg"
+    },
+    {
+      "id": "ashen_crossroads",
+      "title": "The Ashen Crossroads",
+      "author": "StoryBoy",
+      "genre": "Fantasy",
+      "version": "0.1.0",
+      "description": "Choose a warrior, a ranger, or a hedge-witch, then face the ash-hound at the warded gate - your ability scores decide which approach works best.",
+      "downloadUrl": "/store/the-ashen-crossroads.gbk",
+      "posterUrl": "/store/the-ashen-crossroads-poster.jpg",
+      "bannerUrl": "/store/the-ashen-crossroads-banner.jpg"
     }
   ]
 }

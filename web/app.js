@@ -36,6 +36,8 @@ const state = {
   combatEnd: null,
   shopMessage: "",
   showEquipment: false,
+  selectingCharacter: false,
+  chosenCharacter: null,
 };
 
 const app = document.querySelector("#app");
@@ -599,15 +601,81 @@ async function openBook(book) {
     state.equipment = progress?.equipment || [];
     state.equippedBySlot = progress?.equippedBySlot || {};
     state.map = progress?.map || [];
+    state.chosenCharacter = progress?.chosenCharacter || null;
     const savedStats = progress?.stats || {};
     state.stats = {};
     for (const def of gamebook.statDefs) {
       state.stats[def.id] = def.id in savedStats ? savedStats[def.id] : def.start;
     }
-    enterNode(progress?.nodeId || gamebook.metadata.start_node || gamebook.metadata.startNode);
+    if (gamebook.characters.length && !progress?.nodeId) {
+      state.selectingCharacter = true;
+      renderCharacterSelect();
+    } else {
+      enterNode(progress?.nodeId || gamebook.metadata.start_node || gamebook.metadata.startNode);
+    }
   } catch (error) {
     app.innerHTML = `<p class="error">Could not open this gamebook. ${escapeHtml(error.message)}</p>`;
   }
+}
+
+function renderCharacterSelect() {
+  const book = state.activeBook;
+  const gamebook = state.activePackage;
+  title.textContent = book.title;
+  const cards = gamebook.characters.map((character) => {
+    const img = character.image ? gamebook.imageUrls.get(character.image) : null;
+    const statChips = Object.entries(character.stats).map(([id, value]) => {
+      const def = (gamebook.statDefs || []).find((d) => d.id === id);
+      let text = `${def ? def.label : id} ${value}`;
+      if (def && def.ability) { const m = statModifierOf(def, value); text += ` (${m >= 0 ? "+" + m : m})`; }
+      return `<span class="chip">${escapeHtml(text)}</span>`;
+    }).join("");
+    return `
+      <button class="plain-button character-card" type="button" data-character="${escapeAttribute(character.id)}">
+        ${img ? `<img class="reader-image" src="${escapeAttribute(img)}" alt="">` : ""}
+        <h3>${escapeHtml(character.name)}</h3>
+        ${character.description ? `<p class="reader-text">${escapeHtml(character.description)}</p>` : ""}
+        ${statChips ? `<div class="chip-row">${statChips}</div>` : ""}
+      </button>
+    `;
+  }).join("");
+  app.innerHTML = `
+    <article class="reader">
+      <h2>Choose your character</h2>
+      <div class="character-list">${cards}</div>
+      <button class="secondary-button" type="button" data-close-reader>Library</button>
+    </article>
+  `;
+  app.querySelectorAll("[data-character]").forEach((btn) => {
+    btn.addEventListener("click", () => chooseCharacter(btn.dataset.character));
+  });
+  app.querySelector("[data-close-reader]")?.addEventListener("click", closeReader);
+}
+
+function chooseCharacter(characterId) {
+  const gamebook = state.activePackage;
+  const character = gamebook.characters.find((c) => c.id === characterId);
+  if (!character) return;
+  for (const def of gamebook.statDefs) {
+    state.stats[def.id] = def.id in character.stats ? character.stats[def.id] : def.start;
+  }
+  state.equipment = character.equipment
+    .map((id) => gamebook.equipment.get(id))
+    .filter(Boolean);
+  state.equippedBySlot = { ...character.equippedBySlot };
+  state.chosenCharacter = character.id;
+  state.selectingCharacter = false;
+  enterNode(character.startNode || gamebook.metadata.start_node || gamebook.metadata.startNode);
+}
+
+function closeReader() {
+  state.activePackage = null;
+  state.activeBook = null;
+  state.currentNodeId = null;
+  state.selectingCharacter = false;
+  state.view = "library";
+  updateNav();
+  render();
 }
 
 function renderReader() {
@@ -1040,6 +1108,26 @@ function equipmentItem(id) {
   return state.equipment.find((item) => item.id === id) || state.activePackage?.equipment.get(id) || null;
 }
 
+// An ability score's tiered modifier, or a plain stat's value.
+function statModifierOf(def, value) {
+  if (!def || !def.ability) return value;
+  for (const b of def.modifierTable) {
+    if (value >= b.min && value <= b.max) return b.mod;
+  }
+  if (value <= 3) return -3;
+  if (value <= 5) return -2;
+  if (value <= 8) return -1;
+  if (value <= 12) return 0;
+  if (value <= 15) return 1;
+  if (value <= 17) return 2;
+  return 3;
+}
+
+function statBonus(statId) {
+  const def = (state.activePackage.statDefs || []).find((d) => d.id === statId);
+  return statModifierOf(def, effectiveStat(statId));
+}
+
 function effectiveStat(statId) {
   let value = state.stats[statId] || 0;
   for (const itemId of Object.values(state.equippedBySlot)) {
@@ -1099,7 +1187,13 @@ function renderStatBar(gamebook) {
   if (!defs.length) return "";
   return `<div class="chip-row">${defs.map((def) => {
     const value = effectiveStat(def.id);
-    const text = def.max != null ? `${def.label} ${value}/${def.max}` : `${def.label} ${value}`;
+    let text;
+    if (def.ability) {
+      const mod = statModifierOf(def, value);
+      text = `${def.label} ${value} (${mod >= 0 ? "+" + mod : mod})`;
+    } else {
+      text = def.max != null ? `${def.label} ${value}/${def.max}` : `${def.label} ${value}`;
+    }
     return `<span class="chip">${escapeHtml(text)}</span>`;
   }).join("")}</div>`;
 }
@@ -1135,9 +1229,9 @@ function rollCheck(node) {
   const dice = node.dice || node.roll || "1d20";
   const modifier = num(node.modifier ?? node.bonus, 0);
   const statMod = node.stat_modifier || node.modifier_stat || node.stat;
-  const statBonus = statMod ? (state.stats[statMod] || 0) : 0;
+  const bonus = statMod ? statBonus(statMod) : 0;
   const rolls = rollDiceList(dice);
-  const total = rolls.reduce((sum, value) => sum + value, 0) + modifier + statBonus;
+  const total = rolls.reduce((sum, value) => sum + value, 0) + modifier + bonus;
   const need = num(node.target ?? node.difficulty ?? node.dc ?? node.against, 10);
   const success = total >= need;
   state.checkResult = {
@@ -1163,12 +1257,16 @@ function combatRound(node) {
   const log = [];
 
   const weapon = equippedWeapon();
+  const hitStat = player.hit_stat || player.to_hit_stat || node.hit_stat;
+  const damageStat = player.damage_stat || node.damage_stat;
+  const hitMod = hitStat ? statBonus(hitStat) : 0;
+  const damageMod = damageStat ? statBonus(damageStat) : 0;
   const enemyHitTarget = num(enemy.hit_target ?? enemy.to_hit ?? enemy.ac ?? enemy.armor_class, 10);
-  const playerHitBonus = num(player.hit_bonus ?? player.to_hit_bonus, 0) + (weapon ? num(weapon.hit_bonus ?? weapon.to_hit_bonus, 0) : 0);
+  const playerHitBonus = num(player.hit_bonus ?? player.to_hit_bonus, 0) + (weapon ? num(weapon.hit_bonus ?? weapon.to_hit_bonus, 0) : 0) + hitMod;
   const playerRoll = d20();
   if (playerRoll + playerHitBonus >= enemyHitTarget) {
     const damageDice = (weapon && (weapon.damage || weapon.damage_dice)) || player.damage || player.damage_dice || node.player_damage || "1d6";
-    const damageBonus = num(player.damage_bonus ?? player.bonus, 0) + (weapon ? num(weapon.damage_bonus, 0) : 0);
+    const damageBonus = num(player.damage_bonus ?? player.bonus, 0) + (weapon ? num(weapon.damage_bonus, 0) : 0) + damageMod;
     const dmg = rollDiceList(damageDice).reduce((sum, value) => sum + value, 0) + damageBonus;
     enemyHp -= dmg;
     log.push(`You hit (rolled ${playerRoll}) for ${dmg} damage.`);
@@ -1323,6 +1421,18 @@ async function loadGamebookPackage(url) {
     equipmentConfig: normalizeCollectionConfig(collections.equipment || collections.gear, "Equipment", hasEquipment),
     mapConfig: normalizeCollectionConfig(collections.map, "Map", hasMap),
     statDefs: normalizeStats(story.stats || systems.stats),
+    characters: (Array.isArray(story.characters) ? story.characters : [])
+      .filter((c) => c && c.id)
+      .map((c) => ({
+        id: String(c.id),
+        name: c.name || c.title || c.label || c.id,
+        description: c.description || "",
+        image: c.image || null,
+        stats: (c.stats && typeof c.stats === "object") ? c.stats : {},
+        equipment: Array.isArray(c.equipment || c.gear) ? (c.equipment || c.gear) : [],
+        equippedBySlot: (c.equipped && typeof c.equipped === "object") ? c.equipped : {},
+        startNode: c.start_node || c.startNode || null,
+      })),
     imageUrls,
   };
 }
@@ -1336,6 +1446,10 @@ function normalizeStats(raw) {
         || ((entry.is_health || entry.health) ? "health" : ((entry.is_armor || entry.armor) ? "armor" : "normal"));
       const label = entry.label || entry.name || entry.title || displayTitle(entry.id);
       const max = firstNum(entry, ["max", "maximum"]);
+      const tableRaw = entry.modifier_table || entry.modifiers;
+      const modifierTable = (Array.isArray(tableRaw) ? tableRaw : []).map((b) => ({
+        min: num(b.min ?? b.from, 0), max: num(b.max ?? b.to, 0), mod: num(b.mod ?? b.modifier ?? b.bonus, 0),
+      }));
       return {
         id: String(entry.id),
         label: String(label),
@@ -1343,6 +1457,8 @@ function normalizeStats(raw) {
         max: max,
         role: roleText === "health" ? "health" : (roleText === "armor" ? "armor" : "normal"),
         hidden: entry.hidden === true,
+        ability: entry.ability === true || entry.ability_score === true || modifierTable.length > 0,
+        modifierTable,
       };
     });
 }
@@ -1456,6 +1572,7 @@ function saveProgress() {
     equippedBySlot: state.equippedBySlot,
     map: state.map,
     stats: state.stats,
+    chosenCharacter: state.chosenCharacter,
   }));
 }
 

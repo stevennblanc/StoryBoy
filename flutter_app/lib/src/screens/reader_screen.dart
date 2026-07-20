@@ -40,6 +40,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   bool _showEvidence = false;
   bool _showEquipment = false;
   bool _showMap = false;
+  bool _selectingCharacter = false;
   String? _expandedItemId;
   String? _error;
   final _random = Random();
@@ -80,9 +81,13 @@ class _ReaderScreenState extends State<ReaderScreen> {
           ..clear()
           ..addAll(progress.equipped(story.id));
       });
-      _enterNode(
-        savedNode != null && story.nodes.containsKey(savedNode) ? savedNode : story.startNodeId,
-      );
+      if (story.characters.isNotEmpty && savedNode == null) {
+        setState(() => _selectingCharacter = true);
+      } else {
+        _enterNode(
+          savedNode != null && story.nodes.containsKey(savedNode) ? savedNode : story.startNodeId,
+        );
+      }
     } catch (error) {
       setState(() => _error = 'Could not open this gamebook. $error');
     }
@@ -185,7 +190,40 @@ class _ReaderScreenState extends State<ReaderScreen> {
     for (final stat in story.stats) {
       _stats[stat.id] = stat.start;
     }
-    _enterNode(story.startNodeId);
+    if (story.characters.isNotEmpty) {
+      setState(() {
+        _selectingCharacter = true;
+        _node = null;
+      });
+    } else {
+      _enterNode(story.startNodeId);
+    }
+  }
+
+  void _chooseCharacter(CharacterOption character) {
+    final story = _story;
+    if (story == null) return;
+    for (final stat in story.stats) {
+      _stats[stat.id] = character.stats[stat.id] ?? stat.start;
+    }
+    _equipmentIds = {...character.equipmentIds};
+    _equippedBySlot
+      ..clear()
+      ..addAll(character.equippedBySlot);
+    final progress = widget.model.progress;
+    progress.saveChosenCharacter(story.id, character.id);
+    progress.saveStats(story.id, _stats);
+    progress.saveCollectedIds(story.id, 'equipment', _equipmentIds);
+    progress.saveEquipped(story.id, _equippedBySlot);
+    setState(() => _selectingCharacter = false);
+    _enterNode(character.startNodeId ?? story.startNodeId);
+  }
+
+  /// The bonus a stat contributes: an ability score's tiered modifier, or a
+  /// plain stat's effective value.
+  int _statModifier(StoryGamebook story, String statId) {
+    final value = _effectiveStat(statId);
+    return story.statById(statId)?.modifier(value) ?? value;
   }
 
   String _resolveHealthStatId(StoryGamebook story, CombatConfig combat) {
@@ -247,10 +285,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   void _rollCheck() {
     final node = _node;
+    final story = _story;
     final check = node?.check;
-    if (check == null) return;
+    if (check == null || story == null) return;
     final rolls = _rollDiceList(check.dice);
-    final statBonus = check.statModifier != null ? (_stats[check.statModifier] ?? 0) : 0;
+    final statBonus = check.statModifier != null ? _statModifier(story, check.statModifier!) : 0;
     final total = rolls.fold(0, (a, b) => a + b) + check.modifier + statBonus;
     final success = total >= check.target;
     setState(() {
@@ -275,9 +314,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
     final log = <String>[];
 
     final weapon = _equippedWeapon;
+    final hitMod = combat.hitStatId != null ? _statModifier(story, combat.hitStatId!) : 0;
+    final damageMod = combat.damageStatId != null ? _statModifier(story, combat.damageStatId!) : 0;
     final playerDamageDice = weapon?.damage ?? combat.playerDamage;
-    final playerDamageBonus = (weapon?.damageBonus ?? 0) + combat.playerDamageBonus;
-    final playerHitBonus = combat.playerHitBonus + (weapon?.hitBonus ?? 0);
+    final playerDamageBonus = (weapon?.damageBonus ?? 0) + combat.playerDamageBonus + damageMod;
+    final playerHitBonus = combat.playerHitBonus + (weapon?.hitBonus ?? 0) + hitMod;
     final playerRoll = _random.nextInt(20) + 1;
     if (playerRoll + playerHitBonus >= combat.enemyHitTarget) {
       final dmg = _rollDiceList(playerDamageDice).fold(0, (a, b) => a + b) + playerDamageBonus;
@@ -399,9 +440,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
       body: SafeArea(
         child: _error != null
             ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error!)))
-            : story == null || node == null
-                ? const Center(child: CircularProgressIndicator())
-                : ListView(
+            : _selectingCharacter && story != null
+                ? _characterSelect(story)
+                : story == null || node == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : ListView(
                     padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
                     children: [
                       _statBar(story),
@@ -425,6 +468,74 @@ class _ReaderScreenState extends State<ReaderScreen> {
                     ],
                   ),
       ),
+    );
+  }
+
+  Widget _characterSelect(StoryGamebook story) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+      children: [
+        const Text('Choose your character', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 12),
+        for (final character in story.characters)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: InkWell(
+              onTap: () => _chooseCharacter(character),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: SbColors.surface,
+                  border: Border.all(color: SbColors.line),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (character.image != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _assetImage(character.image!),
+                      ),
+                    Text(character.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                    if (character.description.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(character.description, style: readerTextStyle.copyWith(fontSize: 15)),
+                      ),
+                    if (character.stats.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            for (final entry in character.stats.entries)
+                              _statChip(story, entry.key, entry.value),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _statChip(StoryGamebook story, String statId, int value) {
+    final def = story.statById(statId);
+    final label = def?.display(value) ?? '$statId $value';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: SbColors.surface2,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: SbColors.line),
+      ),
+      child: Text(label, style: const TextStyle(fontSize: 13)),
     );
   }
 

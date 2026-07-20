@@ -326,4 +326,93 @@ void main() {
     expect(story.mapConfig.enabled, false);
     expect(story.equipmentConfig.enabled, false);
   });
+
+  test('ability scores map to default tier modifiers; plain stats are their value', () {
+    final story = parseStoryGamebook({
+      'metadata': {'title': 'T', 'folder': 't', 'start_node': 'a'},
+      'stats': [
+        {'id': 'str', 'label': 'Strength', 'start': 16, 'ability': true},
+        {'id': 'wits', 'label': 'Wits', 'start': 4},
+      ],
+      'nodes': [
+        {'id': 'a', 'type': 'text', 'text': 'x'},
+      ],
+    });
+    final str = story.statById('str')!;
+    expect(str.abilityScore, true);
+    expect(str.modifier(16), 2);
+    expect(str.modifier(9), 0);
+    expect(str.modifier(3), -3);
+    expect(str.modifier(18), 3);
+    // plain stat: value is its own modifier
+    expect(story.statById('wits')!.modifier(4), 4);
+  });
+
+  test('custom modifier_table overrides default tiers', () {
+    final story = parseStoryGamebook({
+      'metadata': {'title': 'T', 'folder': 't', 'start_node': 'a'},
+      'stats': [
+        {
+          'id': 'luck',
+          'start': 10,
+          'modifier_table': [
+            {'min': 1, 'max': 9, 'mod': 0},
+            {'min': 10, 'max': 20, 'mod': 5},
+          ],
+        },
+      ],
+      'nodes': [
+        {'id': 'a', 'type': 'text', 'text': 'x'},
+      ],
+    });
+    final luck = story.statById('luck')!;
+    expect(luck.abilityScore, true);
+    expect(luck.modifier(10), 5);
+    expect(luck.modifier(9), 0);
+  });
+
+  test('characters parse with stats, gear, and combat hit/damage stats', () {
+    final story = parseStoryGamebook({
+      'metadata': {'title': 'T', 'folder': 't', 'start_node': 'start'},
+      'stats': [
+        {'id': 'str', 'ability': true, 'start': 10},
+      ],
+      'equipment': [
+        {'id': 'sword', 'title': 'Sword', 'slot': 'weapon', 'damage': '1d6'},
+      ],
+      'characters': [
+        {
+          'id': 'warrior',
+          'name': 'Bram the Warrior',
+          'description': 'Strong.',
+          'stats': {'str': 16},
+          'equipment': ['sword'],
+          'equipped': {'weapon': 'sword'},
+          'start_node': 'start',
+        },
+      ],
+      'nodes': [
+        {
+          'id': 'start',
+          'type': 'combat',
+          'text': 'x',
+          'enemy': {'label': 'Brute', 'hp': 5, 'hit_target': 10, 'damage': '1d6'},
+          'player': {'damage': '1d4', 'hit_stat': 'str', 'damage_stat': 'str'},
+          'win_target': 'won',
+          'lose_target': 'died',
+        },
+        {'id': 'won', 'type': 'text', 'text': 'w'},
+        {'id': 'died', 'type': 'text', 'text': 'd'},
+      ],
+    });
+    expect(story.characters, hasLength(1));
+    final warrior = story.characters.first;
+    expect(warrior.name, 'Bram the Warrior');
+    expect(warrior.stats['str'], 16);
+    expect(warrior.equipmentIds, ['sword']);
+    expect(warrior.equippedBySlot['weapon'], 'sword');
+    final combat = story.node('start').combat!;
+    expect(combat.hitStatId, 'str');
+    expect(combat.damageStatId, 'str');
+  });
 }
