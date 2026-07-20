@@ -122,7 +122,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     crossAxisCount: 3,
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
-                    childAspectRatio: 0.6,
+                    childAspectRatio: 0.5,
                   ),
                   delegate: SliverChildBuilderDelegate(
                     childCount: books.length,
@@ -157,11 +157,11 @@ class _LibraryTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: BookPoster(posterFile: book.posterFile)),
+          AspectRatio(aspectRatio: 2 / 3, child: BookPoster(posterFile: book.posterFile)),
           const SizedBox(height: 6),
           Text(
             book.title,
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 13),
           ),

@@ -92,7 +92,7 @@ class _StoreScreenState extends State<StoreScreen> {
                     crossAxisCount: 3,
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
-                    childAspectRatio: 0.55,
+                    childAspectRatio: 0.5,
                   ),
                   delegate: SliverChildBuilderDelegate(
                     childCount: books.length,
@@ -128,16 +128,21 @@ class _StoreTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: BookPoster(posterUrl: resolveStoreUrl(book.posterPath))),
+          AspectRatio(
+            aspectRatio: 2 / 3,
+            child: BookPoster(posterUrl: resolveStoreUrl(book.posterPath)),
+          ),
           const SizedBox(height: 6),
           Text(
             book.title,
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 13),
           ),
           Text(
             owned ? 'In your library' : book.priceLabel,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: mutedStyle.copyWith(
               fontSize: 12,
               color: owned ? SbColors.muted : SbColors.accent,

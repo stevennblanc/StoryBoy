@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- StoryBoy open-gamebook mark: white on transparent, centered in the adaptive safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <!-- Left page: tilted so the spine dips at center -->
+    <group
+        android:rotation="-7"
+        android:pivotX="250"
+        android:pivotY="168">
+        <path
+            android:fillColor="#F7F7F7"
+            android:pathData="M132,168h102a16,16 0,0 1,16 16v148a16,16 0,0 1,-16 16h-102a16,16 0,0 1,-16 -16v-148a16,16 0,0 1,16 -16z" />
+        <path
+            android:strokeColor="#050505"
+            android:strokeWidth="12"
+            android:strokeLineCap="round"
+            android:pathData="M144,200L224,200" />
+        <path
+            android:strokeColor="#050505"
+            android:strokeWidth="12"
+            android:strokeLineCap="round"
+            android:pathData="M144,224L192,224" />
+        <path
+            android:strokeColor="#050505"
+            android:strokeWidth="26"
+            android:strokeLineCap="round"
+            android:pathData="M154,296L214,296" />
+        <path
+            android:strokeColor="#050505"
+            android:strokeWidth="26"
+            android:strokeLineCap="round"
+            android:pathData="M184,266L184,326" />
+    </group>
+    <!-- Right page -->
+    <group
+        android:rotation="7"
+        android:pivotX="262"
+        android:pivotY="168">
+        <path
+            android:fillColor="#F7F7F7"
+            android:pathData="M278,168h102a16,16 0,0 1,16 16v148a16,16 0,0 1,-16 16h-102a16,16 0,0 1,-16 -16v-148a16,16 0,0 1,16 -16z" />
+        <path
+            android:strokeColor="#050505"
+            android:strokeWidth="12"
+            android:strokeLineCap="round"
+            android:pathData="M288,200L368,200" />
+        <path
+            android:strokeColor="#050505"
+            android:strokeWidth="12"
+            android:strokeLineCap="round"
+            android:pathData="M288,224L336,224" />
+        <path
+            android:fillColor="#050505"
+            android:pathData="M316,300m-20,0a20,20 0,1 0,40 0a20,20 0,1 0,-40 0" />
+        <path
+            android:fillColor="#050505"
+            android:pathData="M360,270m-20,0a20,20 0,1 0,40 0a20,20 0,1 0,-40 0" />
+    </group>
+</vector>

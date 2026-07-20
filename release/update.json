@@ -1,6 +1,6 @@
 {
-  "versionCode": 22,
-  "versionName": "0.21.0",
+  "versionCode": 23,
+  "versionName": "0.21.1",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "Library and store now have search, genre and progress filters, sort options, and a grid/list view toggle."
+  "releaseNotes": "The app now uses the StoryBoy gamebook icon instead of the default Flutter logo."
 }
