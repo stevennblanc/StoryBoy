@@ -298,9 +298,61 @@ Round-based combat against a single enemy. The player rolls to hit the enemy; th
 
 Combat is heavier than a `battle` node (an opposed one-roll luck check) — use `battle`/`check` for quick chance beats and `combat` for real fights.
 
+## Currency, Equipment, and Shops
+
+**Currency** is just a stat, so it needs no special system — define a `gold` stat (rename it "Credits", "Emberium", anything) and grant it with `stat_changes`. A shop spends from a named stat.
+
+**Equipment** is a third collection alongside inventory and evidence, with its own renamable config (`collections.equipment.label`, default "Equipment"; "Gear", "Loadout", etc.). Equipment items add these fields:
+
+```json
+{
+  "equipment": [
+    { "id": "chain_mail", "title": "Chain Mail", "slot": "armor", "equip_effects": { "ac": 2 } },
+    { "id": "short_sword", "title": "Short Sword", "slot": "weapon", "damage": "1d6", "damage_bonus": 1, "hit_bonus": 0 }
+  ]
+}
+```
+
+- `slot` makes an item equippable; only one item per slot is active at a time.
+- `equip_effects` are stat deltas applied while equipped — displayed and used stat values are the base value plus everything equipped.
+- `damage` / `damage_bonus` / `hit_bonus` on an equipped weapon drive combat.
+
+For equipment to matter in combat, give the defense stat `role: "armor"` and point the combat node at it:
+
+```json
+{
+  "stats": [
+    { "id": "ac", "label": "Armor Class", "start": 9, "role": "armor" }
+  ],
+  "nodes": [
+    { "id": "fight", "type": "combat", "text": "It lunges!",
+      "enemy": { "label": "Gloamworm", "hp": 7, "hit_target": 9, "damage": "1d4", "attack_bonus": 2 },
+      "player": { "damage": "1d3", "hit_bonus": 0 },
+      "armor_stat": "ac",
+      "win_target": "won", "lose_target": "died" }
+  ]
+}
+```
+
+With `armor_stat` set, the enemy must roll `1d20 + attack_bonus` >= your effective armor stat, so equipped armor makes you harder to hit and an equipped weapon replaces the node's `player.damage`. Without `armor_stat`, combat uses the fixed `monster_hits_on` from stage 1.
+
+**Shop nodes** sell catalog items for a currency stat:
+
+```json
+{ "id": "smithy", "type": "shop", "text": "Buy before you delve.",
+  "currency_stat": "gold",
+  "items": [
+    { "equipment": "chain_mail", "price": 40 },
+    { "inventory": "torch", "price": 1 }
+  ],
+  "return_target": "town", "leave_label": "Head out" }
+```
+
+Each item references an `equipment` or `inventory` catalog id plus a `price`; buying deducts the currency stat and grants the item (which the player then equips from the equipment panel). Already-owned items show as owned.
+
 ## Opt-in and renaming
 
-Every system — collections, stats, checks, combat — is off until a book uses it, and every label has a default the book can override. A simple story that defines no stats and uses no combat shows none of it. This keeps genres from bleeding UI into each other: a detective book shows "Evidence," a dungeon shows "Health / Armor Class," a travel comedy shows nothing extra.
+Every system — collections, equipment, stats, currency, checks, combat, shops — is off until a book uses it, and every label has a default the book can override. A simple story that defines no stats and uses no combat shows none of it. This keeps genres from bleeding UI into each other: a detective book shows "Evidence," a dungeon shows "Health / Armor Class / Gold / Equipment," a travel comedy shows nothing extra. A sci-fi book can rename Armor Class to "Shields", gold to "Credits", and equipment to "Loadout" with pure label overrides.
 
 ## Map Nodes
 

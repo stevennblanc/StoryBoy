@@ -45,12 +45,33 @@ class ProgressStore {
     );
   }
 
+  /// Equipped items by slot, stored as "slot=itemId" pairs.
+  Map<String, String> equipped(String bookId) {
+    final raw = _prefs.getStringList('progress.$bookId.equipped') ?? const [];
+    final result = <String, String>{};
+    for (final pair in raw) {
+      final index = pair.indexOf('=');
+      if (index <= 0) continue;
+      result[pair.substring(0, index)] = pair.substring(index + 1);
+    }
+    return result;
+  }
+
+  Future<void> saveEquipped(String bookId, Map<String, String> bySlot) async {
+    await _prefs.setStringList(
+      'progress.$bookId.equipped',
+      [for (final entry in bySlot.entries) '${entry.key}=${entry.value}'],
+    );
+  }
+
   bool hasProgress(String bookId) => currentNode(bookId) != null;
 
   Future<void> reset(String bookId) async {
     await _prefs.remove('progress.$bookId.node');
     await _prefs.remove('progress.$bookId.inventory');
     await _prefs.remove('progress.$bookId.evidence');
+    await _prefs.remove('progress.$bookId.equipment');
+    await _prefs.remove('progress.$bookId.equipped');
     await _prefs.remove('progress.$bookId.stats');
   }
 

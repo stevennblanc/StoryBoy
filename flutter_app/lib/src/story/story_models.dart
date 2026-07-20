@@ -11,6 +11,8 @@ class StoryGamebook {
     required this.evidenceCatalog,
     required this.inventoryConfig,
     required this.evidenceConfig,
+    this.equipmentCatalog = const {},
+    this.equipmentConfig = const CollectionConfig(label: 'Equipment'),
     this.stats = const [],
   });
 
@@ -20,16 +22,21 @@ class StoryGamebook {
   final Map<String, StoryNode> nodes;
   final Map<String, CollectionItem> inventoryCatalog;
   final Map<String, CollectionItem> evidenceCatalog;
+  final Map<String, CollectionItem> equipmentCatalog;
   final CollectionConfig inventoryConfig;
   final CollectionConfig evidenceConfig;
+  final CollectionConfig equipmentConfig;
 
   /// Book-defined numeric stats (HP, Armor Class, gold, or any renamed
   /// equivalent). Empty when the book uses no stat systems.
   final List<StatDef> stats;
 
-  StatDef? get healthStat {
+  StatDef? get healthStat => _statByRole(StatRole.health);
+  StatDef? get armorStat => _statByRole(StatRole.armor);
+
+  StatDef? _statByRole(StatRole role) {
     for (final stat in stats) {
-      if (stat.role == StatRole.health) return stat;
+      if (stat.role == role) return stat;
     }
     return null;
   }
@@ -41,7 +48,7 @@ class StoryGamebook {
   }
 }
 
-enum StatRole { normal, health }
+enum StatRole { normal, health, armor }
 
 /// A named numeric stat with a default label the book may override, a starting
 /// value, an optional cap, and an optional [StatRole.health] flag that makes
@@ -87,10 +94,12 @@ class StoryNode {
     this.choices = const [],
     this.inventoryGained = const [],
     this.evidenceGained = const [],
+    this.equipmentGained = const [],
     this.mapLocations = const [],
     this.battle,
     this.check,
     this.combat,
+    this.shop,
     this.statChanges = const [],
     this.acceptedAnswers = const [],
     this.correctTargetId,
@@ -104,10 +113,12 @@ class StoryNode {
   final List<StoryChoice> choices;
   final List<CollectionItem> inventoryGained;
   final List<CollectionItem> evidenceGained;
+  final List<CollectionItem> equipmentGained;
   final List<MapLocation> mapLocations;
   final BattleConfig? battle;
   final CheckConfig? check;
   final CombatConfig? combat;
+  final ShopConfig? shop;
   final List<StatChange> statChanges;
   final List<String> acceptedAnswers;
   final String? correctTargetId;
@@ -119,7 +130,37 @@ class StoryNode {
       type != 'battle' &&
       type != 'check' &&
       type != 'combat' &&
+      type != 'shop' &&
       choices.isEmpty;
+}
+
+/// A shop: buy catalog items with a currency stat, then leave.
+class ShopConfig {
+  const ShopConfig({
+    required this.currencyStatId,
+    required this.items,
+    this.returnTargetId,
+    this.leaveLabel = 'Leave',
+  });
+
+  final String currencyStatId;
+  final List<ShopItem> items;
+  final String? returnTargetId;
+  final String leaveLabel;
+}
+
+class ShopItem {
+  const ShopItem({
+    required this.itemId,
+    required this.collection,
+    required this.price,
+  });
+
+  final String itemId;
+
+  /// Which catalog the item comes from: 'equipment' or 'inventory'.
+  final String collection;
+  final int price;
 }
 
 /// A single-roll test (saving throw / luck roll): roll [dice] + [modifier],
@@ -165,6 +206,8 @@ class CombatConfig {
     required this.winTargetId,
     required this.loseTargetId,
     required this.healthStatId,
+    this.armorStatId,
+    this.enemyAttackBonus = 0,
     this.fleeTargetId,
     this.talkTargetId,
     this.talkLabel = 'Talk',
@@ -185,6 +228,12 @@ class CombatConfig {
   final String winTargetId;
   final String loseTargetId;
   final String healthStatId;
+
+  /// When set, the enemy must roll (1d20 + [enemyAttackBonus]) >= the player's
+  /// effective value of this stat to hit, so equipped armor matters. Falls back
+  /// to [monsterHitsOn] when null.
+  final String? armorStatId;
+  final int enemyAttackBonus;
   final String? fleeTargetId;
   final String? talkTargetId;
   final String talkLabel;
@@ -212,7 +261,8 @@ class MapLocation {
   final String targetId;
 }
 
-/// Shared shape for inventory items and evidence entries.
+/// Shared shape for inventory items, evidence entries, and equipment. The
+/// equipment fields are only meaningful for items in the equipment collection.
 class CollectionItem {
   const CollectionItem({
     required this.id,
@@ -220,6 +270,11 @@ class CollectionItem {
     this.description = '',
     this.detail = '',
     this.image,
+    this.slot,
+    this.equipEffects = const {},
+    this.damage,
+    this.damageBonus = 0,
+    this.hitBonus = 0,
   });
 
   final String id;
@@ -228,7 +283,34 @@ class CollectionItem {
   final String detail;
   final String? image;
 
+  /// Equipment: the slot this item occupies (e.g. weapon, armor, shield).
+  /// Only one item per slot is active at a time.
+  final String? slot;
+
+  /// Stat deltas applied while this item is equipped (e.g. {"ac": 2}).
+  final Map<String, int> equipEffects;
+
+  /// Weapon damage dice used in combat while equipped (overrides the node's
+  /// player damage when set).
+  final String? damage;
+  final int damageBonus;
+  final int hitBonus;
+
   bool get hasMore => detail.isNotEmpty || image != null;
+  bool get isEquippable => slot != null;
+
+  CollectionItem copyWith({String? image}) => CollectionItem(
+        id: id,
+        title: title,
+        description: description,
+        detail: detail,
+        image: image ?? this.image,
+        slot: slot,
+        equipEffects: equipEffects,
+        damage: damage,
+        damageBonus: damageBonus,
+        hitBonus: hitBonus,
+      );
 }
 
 /// Book-defined presentation for a collection system (label, count, enabled).

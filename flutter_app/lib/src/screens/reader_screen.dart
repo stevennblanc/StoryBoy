@@ -26,14 +26,18 @@ class _ReaderScreenState extends State<ReaderScreen> {
   StoryNode? _node;
   Set<String> _inventoryIds = {};
   Set<String> _evidenceIds = {};
+  Set<String> _equipmentIds = {};
   final Map<String, int> _stats = {};
+  final Map<String, String> _equippedBySlot = {};
   BattleResult? _battleResult;
   _CheckOutcome? _checkOutcome;
   int? _enemyHp;
   final List<String> _combatLog = [];
   String? _combatEndTarget;
+  String _shopMessage = '';
   bool _showInventory = false;
   bool _showEvidence = false;
+  bool _showEquipment = false;
   String? _expandedItemId;
   String? _error;
   final _random = Random();
@@ -64,10 +68,14 @@ class _ReaderScreenState extends State<ReaderScreen> {
         _story = story;
         _inventoryIds = progress.collectedIds(story.id, 'inventory');
         _evidenceIds = progress.collectedIds(story.id, 'evidence');
+        _equipmentIds = progress.collectedIds(story.id, 'equipment');
         _stats.clear();
         for (final stat in story.stats) {
           _stats[stat.id] = savedStats[stat.id] ?? stat.start;
         }
+        _equippedBySlot
+          ..clear()
+          ..addAll(progress.equipped(story.id));
       });
       _enterNode(
         savedNode != null && story.nodes.containsKey(savedNode) ? savedNode : story.startNodeId,
@@ -85,24 +93,64 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
     final inventoryIds = {..._inventoryIds, ...node.inventoryGained.map((item) => item.id)};
     final evidenceIds = {..._evidenceIds, ...node.evidenceGained.map((item) => item.id)};
+    final equipmentIds = {..._equipmentIds, ...node.equipmentGained.map((item) => item.id)};
     _applyStatChanges(story, node.statChanges);
     final progress = widget.model.progress;
     progress.saveCurrentNode(story.id, nodeId);
     progress.saveCollectedIds(story.id, 'inventory', inventoryIds);
     progress.saveCollectedIds(story.id, 'evidence', evidenceIds);
+    progress.saveCollectedIds(story.id, 'equipment', equipmentIds);
     progress.saveStats(story.id, _stats);
 
     setState(() {
       _node = node;
       _inventoryIds = inventoryIds;
       _evidenceIds = evidenceIds;
+      _equipmentIds = equipmentIds;
       _battleResult = null;
       _checkOutcome = null;
       _enemyHp = node.combat?.enemyHp;
       _combatLog.clear();
       _combatEndTarget = null;
+      _shopMessage = '';
       _answerController.clear();
     });
+  }
+
+  /// A stat's value including the effects of everything currently equipped.
+  int _effectiveStat(String statId) {
+    final story = _story;
+    var value = _stats[statId] ?? 0;
+    if (story == null) return value;
+    for (final itemId in _equippedBySlot.values) {
+      final item = story.equipmentCatalog[itemId];
+      final delta = item?.equipEffects[statId];
+      if (delta != null) value += delta;
+    }
+    return value;
+  }
+
+  CollectionItem? get _equippedWeapon {
+    final story = _story;
+    if (story == null) return null;
+    for (final itemId in _equippedBySlot.values) {
+      final item = story.equipmentCatalog[itemId];
+      if (item?.damage != null) return item;
+    }
+    return null;
+  }
+
+  void _toggleEquip(CollectionItem item) {
+    final story = _story;
+    if (story == null || item.slot == null) return;
+    setState(() {
+      if (_equippedBySlot[item.slot] == item.id) {
+        _equippedBySlot.remove(item.slot);
+      } else {
+        _equippedBySlot[item.slot!] = item.id;
+      }
+    });
+    widget.model.progress.saveEquipped(story.id, _equippedBySlot);
   }
 
   void _applyStatChanges(StoryGamebook story, List<StatChange> changes) {
@@ -124,6 +172,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
     widget.model.progress.reset(story.id);
     _inventoryIds = {};
     _evidenceIds = {};
+    _equipmentIds = {};
+    _equippedBySlot.clear();
     _stats.clear();
     for (final stat in story.stats) {
       _stats[stat.id] = stat.start;
@@ -217,9 +267,13 @@ class _ReaderScreenState extends State<ReaderScreen> {
     var playerHp = _stats[healthId] ?? 0;
     final log = <String>[];
 
+    final weapon = _equippedWeapon;
+    final playerDamageDice = weapon?.damage ?? combat.playerDamage;
+    final playerDamageBonus = (weapon?.damageBonus ?? 0) + combat.playerDamageBonus;
+    final playerHitBonus = combat.playerHitBonus + (weapon?.hitBonus ?? 0);
     final playerRoll = _random.nextInt(20) + 1;
-    if (playerRoll + combat.playerHitBonus >= combat.enemyHitTarget) {
-      final dmg = _rollDiceList(combat.playerDamage).fold(0, (a, b) => a + b) + combat.playerDamageBonus;
+    if (playerRoll + playerHitBonus >= combat.enemyHitTarget) {
+      final dmg = _rollDiceList(playerDamageDice).fold(0, (a, b) => a + b) + playerDamageBonus;
       enemyHp -= dmg;
       log.add('You hit (rolled $playerRoll) for $dmg damage.');
     } else {
@@ -227,8 +281,9 @@ class _ReaderScreenState extends State<ReaderScreen> {
     }
 
     if (enemyHp > 0) {
+      final hitsOn = combat.armorStatId != null ? _effectiveStat(combat.armorStatId!) : combat.monsterHitsOn;
       final enemyRoll = _random.nextInt(20) + 1;
-      if (enemyRoll >= combat.monsterHitsOn) {
+      if (enemyRoll + combat.enemyAttackBonus >= hitsOn) {
         final dmg = _rollDiceList(combat.enemyDamage).fold(0, (a, b) => a + b);
         playerHp -= dmg;
         log.add('${combat.enemyLabel} hits (rolled $enemyRoll) for $dmg damage.');
@@ -259,9 +314,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
     if (story == null || combat.fleeTargetId == null) return;
     final healthId = _resolveHealthStatId(story, combat);
     var playerHp = _stats[healthId] ?? 0;
+    final hitsOn = combat.armorStatId != null ? _effectiveStat(combat.armorStatId!) : combat.monsterHitsOn;
     final enemyRoll = _random.nextInt(20) + 1;
     final log = <String>[];
-    if (enemyRoll >= combat.monsterHitsOn) {
+    if (enemyRoll + combat.enemyAttackBonus >= hitsOn) {
       final dmg = _rollDiceList(combat.enemyDamage).fold(0, (a, b) => a + b);
       playerHp -= dmg;
       log.add('${combat.enemyLabel} strikes as you flee for $dmg damage.');
@@ -301,6 +357,15 @@ class _ReaderScreenState extends State<ReaderScreen> {
     ];
   }
 
+  List<CollectionItem> get _collectedEquipment {
+    final story = _story;
+    if (story == null) return const [];
+    return [
+      for (final id in _equipmentIds)
+        if (story.equipmentCatalog[id] != null) story.equipmentCatalog[id]!,
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final story = _story;
@@ -326,6 +391,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
                       _collectionBar(story),
                       if (_showInventory && story.inventoryConfig.enabled)
                         _collectionPanel(story.inventoryConfig.label, _collectedInventory),
+                      if (_showEquipment && story.equipmentConfig.enabled)
+                        _equipmentPanel(story.equipmentConfig.label, _collectedEquipment),
                       if (_showEvidence && story.evidenceConfig.enabled)
                         _collectionPanel(story.evidenceConfig.label, _collectedEvidence),
                       for (final image in node.images) _storyImage(image),
@@ -360,7 +427,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                 border: Border.all(color: SbColors.line),
               ),
               child: Text(
-                stat.display(_stats[stat.id] ?? stat.start),
+                stat.display(_effectiveStat(stat.id)),
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
               ),
             ),
@@ -377,6 +444,14 @@ class _ReaderScreenState extends State<ReaderScreen> {
             ? null
             : () => setState(() => _showInventory = !_showInventory),
         child: Text(story.inventoryConfig.buttonLabel(_collectedInventory.length)),
+      ));
+    }
+    if (story.equipmentConfig.enabled) {
+      buttons.add(TextButton(
+        onPressed: _collectedEquipment.isEmpty
+            ? null
+            : () => setState(() => _showEquipment = !_showEquipment),
+        child: Text(story.equipmentConfig.buttonLabel(_collectedEquipment.length)),
       ));
     }
     if (story.evidenceConfig.enabled) {
@@ -405,6 +480,56 @@ class _ReaderScreenState extends State<ReaderScreen> {
           Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           for (final item in items) _collectionEntry(item),
+        ],
+      ),
+    );
+  }
+
+  Widget _equipmentPanel(String title, List<CollectionItem> items) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: SbColors.surface,
+        border: Border.all(color: SbColors.line),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          for (final item in items) _equipmentEntry(item),
+        ],
+      ),
+    );
+  }
+
+  Widget _equipmentEntry(CollectionItem item) {
+    final equipped = item.slot != null && _equippedBySlot[item.slot] == item.id;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  equipped ? '${item.title} (equipped)' : item.title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                if (item.description.isNotEmpty) Text(item.description, style: mutedStyle),
+                if (item.hasMore && item.detail.isNotEmpty) Text(item.detail, style: mutedStyle),
+              ],
+            ),
+          ),
+          if (item.isEquippable)
+            TextButton(
+              onPressed: () => _toggleEquip(item),
+              child: Text(equipped ? 'Unequip' : 'Equip'),
+            ),
         ],
       ),
     );
@@ -525,6 +650,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
       return _combatActions(node.combat!);
     }
 
+    if (node.type == 'shop' && node.shop != null) {
+      return _shopActions(node.shop!);
+    }
+
     if (node.choices.isEmpty) {
       return [
         const Center(child: Text('The End', style: TextStyle(fontSize: 24))),
@@ -600,6 +729,104 @@ class _ReaderScreenState extends State<ReaderScreen> {
   String _bonusText(int bonus, {bool always = false}) {
     if (bonus == 0 && !always) return '';
     return bonus >= 0 ? ' +$bonus' : ' $bonus';
+  }
+
+  void _buy(ShopConfig shop, ShopItem entry, CollectionItem item) {
+    final story = _story;
+    if (story == null) return;
+    final funds = _stats[shop.currencyStatId] ?? 0;
+    if (funds < entry.price) {
+      setState(() => _shopMessage = 'Not enough to buy ${item.title}.');
+      return;
+    }
+    setState(() {
+      _stats[shop.currencyStatId] = funds - entry.price;
+      if (entry.collection == 'equipment') {
+        _equipmentIds = {..._equipmentIds, item.id};
+      } else {
+        _inventoryIds = {..._inventoryIds, item.id};
+      }
+      _shopMessage = 'Bought ${item.title}.';
+    });
+    final progress = widget.model.progress;
+    progress.saveStats(story.id, _stats);
+    progress.saveCollectedIds(story.id, 'equipment', _equipmentIds);
+    progress.saveCollectedIds(story.id, 'inventory', _inventoryIds);
+  }
+
+  List<Widget> _shopActions(ShopConfig shop) {
+    final story = _story;
+    if (story == null) return const [];
+    final funds = _stats[shop.currencyStatId] ?? 0;
+    var currencyLabel = 'Gold';
+    for (final stat in story.stats) {
+      if (stat.id == shop.currencyStatId) {
+        currencyLabel = stat.label;
+        break;
+      }
+    }
+
+    final rows = <Widget>[];
+    for (final entry in shop.items) {
+      final catalog = entry.collection == 'equipment' ? story.equipmentCatalog : story.inventoryCatalog;
+      final item = catalog[entry.itemId];
+      if (item == null) continue;
+      final owned = entry.collection == 'equipment'
+          ? _equipmentIds.contains(item.id)
+          : _inventoryIds.contains(item.id);
+      rows.add(Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  if (item.description.isNotEmpty) Text(item.description, style: mutedStyle),
+                ],
+              ),
+            ),
+            if (owned)
+              const Text('Owned', style: mutedStyle)
+            else
+              FilledButton(
+                onPressed: funds >= entry.price ? () => _buy(shop, entry, item) : null,
+                child: Text('${entry.price} $currencyLabel'),
+              ),
+          ],
+        ),
+      ));
+    }
+
+    return [
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: SbColors.surface,
+          border: Border.all(color: SbColors.line),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('$currencyLabel: $funds', style: const TextStyle(fontWeight: FontWeight.w600)),
+            ...rows,
+            if (_shopMessage.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(_shopMessage, style: mutedStyle),
+              ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
+      if (shop.returnTargetId != null)
+        FilledButton(
+          onPressed: () => _enterNode(shop.returnTargetId!),
+          child: Text(shop.leaveLabel),
+        ),
+    ];
   }
 
   List<Widget> _checkActions(CheckConfig check) {

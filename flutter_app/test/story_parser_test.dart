@@ -188,4 +188,94 @@ void main() {
     expect(combat.loseTargetId, 'died');
     expect(combat.fleeTargetId, 'fled');
   });
+
+  test('equipment parses slot, effects, and weapon stats with renamable label', () {
+    final story = parseStoryGamebook({
+      'metadata': {'title': 'T', 'folder': 't', 'start_node': 'a'},
+      'collections': {
+        'equipment': {'label': 'Gear'},
+      },
+      'equipment': [
+        {'id': 'leather', 'title': 'Leather', 'slot': 'armor', 'equip_effects': {'ac': 2}},
+        {'id': 'sword', 'title': 'Sword', 'slot': 'weapon', 'damage': '1d6', 'damage_bonus': 1, 'hit_bonus': 1},
+      ],
+      'nodes': [
+        {'id': 'a', 'type': 'text', 'text': 'x'},
+      ],
+    });
+
+    expect(story.equipmentConfig.label, 'Gear');
+    expect(story.equipmentConfig.enabled, true);
+    final leather = story.equipmentCatalog['leather']!;
+    expect(leather.slot, 'armor');
+    expect(leather.equipEffects['ac'], 2);
+    expect(leather.isEquippable, true);
+    final sword = story.equipmentCatalog['sword']!;
+    expect(sword.damage, '1d6');
+    expect(sword.damageBonus, 1);
+    expect(sword.hitBonus, 1);
+  });
+
+  test('armor stat role and combat armor_stat parse', () {
+    final story = parseStoryGamebook({
+      'metadata': {'title': 'T', 'folder': 't', 'start_node': 'fight'},
+      'stats': [
+        {'id': 'ac', 'label': 'Shields', 'start': 9, 'role': 'armor'},
+      ],
+      'nodes': [
+        {
+          'id': 'fight',
+          'type': 'combat',
+          'text': 'x',
+          'enemy': {'label': 'Drone', 'hp': 4, 'hit_target': 8, 'damage': '1d4', 'attack_bonus': 2},
+          'armor_stat': 'ac',
+          'win_target': 'won',
+          'lose_target': 'died',
+        },
+        {'id': 'won', 'type': 'text', 'text': 'w'},
+        {'id': 'died', 'type': 'text', 'text': 'd'},
+      ],
+    });
+
+    expect(story.armorStat!.id, 'ac');
+    expect(story.armorStat!.label, 'Shields');
+    final combat = story.node('fight').combat!;
+    expect(combat.armorStatId, 'ac');
+    expect(combat.enemyAttackBonus, 2);
+  });
+
+  test('shop node parses currency, items, and return target', () {
+    final story = parseStoryGamebook({
+      'metadata': {'title': 'T', 'folder': 't', 'start_node': 'shop'},
+      'equipment': [
+        {'id': 'sword', 'title': 'Sword', 'slot': 'weapon', 'damage': '1d6'},
+      ],
+      'inventory': [
+        {'id': 'torch', 'title': 'Torch'},
+      ],
+      'nodes': [
+        {
+          'id': 'shop',
+          'type': 'shop',
+          'text': 'Buy something.',
+          'currency_stat': 'gold',
+          'items': [
+            {'equipment': 'sword', 'price': 10},
+            {'inventory': 'torch', 'price': 1},
+          ],
+          'return_target': 'town',
+        },
+        {'id': 'town', 'type': 'text', 'text': 't'},
+      ],
+    });
+
+    final shop = story.node('shop').shop!;
+    expect(shop.currencyStatId, 'gold');
+    expect(shop.returnTargetId, 'town');
+    expect(shop.items, hasLength(2));
+    expect(shop.items[0].itemId, 'sword');
+    expect(shop.items[0].collection, 'equipment');
+    expect(shop.items[0].price, 10);
+    expect(shop.items[1].collection, 'inventory');
+  });
 }

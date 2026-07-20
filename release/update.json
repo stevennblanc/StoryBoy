@@ -1,6 +1,6 @@
 {
-  "versionCode": 25,
-  "versionName": "0.22.0",
+  "versionCode": 26,
+  "versionName": "0.23.0",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "New adventure systems: renamable, hideable character stats (Health, Armor Class, and custom stats), a luck/skill check node, and round-based combat with damage and death. Books opt in to each system, so simpler stories stay uncluttered."
+  "releaseNotes": "New adventure systems: gold (or any renamable currency), equipment you buy and equip that changes your stats and combat, and shop nodes. Equipped armor raises your defense and a weapon hits harder. Every system stays opt-in and renamable, so simpler books show none of it."
 }
