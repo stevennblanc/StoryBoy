@@ -1,6 +1,6 @@
 {
-  "versionCode": 27,
-  "versionName": "0.24.0",
+  "versionCode": 28,
+  "versionName": "0.24.1",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "New: a revealing Map. Books can define map fragments that fill in room by room as you explore, assembled in a Map panel you can open any time. Renamable and opt-in like every other system."
+  "releaseNotes": "Fix: shop items on Android showed one letter per line and no buy button. Shop rows now lay out correctly with a working buy button."
 }

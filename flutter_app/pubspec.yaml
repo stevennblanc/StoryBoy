@@ -18,7 +18,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # of the product and file versions while build-number is used as the build suffix.
 # versionCode continues from the Kotlin app (0.19.0 = 20) so the in-app
 # updater can eventually ship this build as an in-place upgrade.
-version: 0.24.0+27
+version: 0.24.1+28
 
 environment:
   sdk: ^3.12.0

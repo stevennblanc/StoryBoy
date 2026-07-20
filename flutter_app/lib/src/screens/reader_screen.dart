@@ -844,10 +844,18 @@ class _ReaderScreenState extends State<ReaderScreen> {
                 ],
               ),
             ),
+            const SizedBox(width: 12),
             if (owned)
               const Text('Owned', style: mutedStyle)
             else
               FilledButton(
+                // Local width override: the theme's Size.fromHeight(48) makes
+                // buttons infinitely wide, which collapses the name Expanded in
+                // this Row. Constrain the buy button to its content.
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                ),
                 onPressed: funds >= entry.price ? () => _buy(shop, entry, item) : null,
                 child: Text('${entry.price} $currencyLabel'),
               ),
