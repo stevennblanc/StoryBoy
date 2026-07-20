@@ -5,13 +5,34 @@ import 'data/progress_store.dart';
 import 'data/store_repository.dart';
 import 'models.dart';
 
+enum DisplayMode { grid, list }
+
+enum LibrarySort { title, author }
+
+enum ProgressFilter { all, inProgress, notStarted }
+
 /// App-wide state: catalogue, local library, ownership, and auth session.
 class AppModel extends ChangeNotifier {
   AppModel(this.progress) : repository = StoreRepository(progress) {
+    displayMode = progress.displayMode == 'list' ? DisplayMode.list : DisplayMode.grid;
     Supabase.instance.client.auth.onAuthStateChange.listen((_) {
       refreshOwnership();
       notifyListeners();
     });
+  }
+
+  DisplayMode displayMode = DisplayMode.grid;
+  LibrarySort librarySort = LibrarySort.title;
+
+  void setDisplayMode(DisplayMode mode) {
+    displayMode = mode;
+    progress.saveDisplayMode(mode == DisplayMode.list ? 'list' : 'grid');
+    notifyListeners();
+  }
+
+  void setLibrarySort(LibrarySort sort) {
+    librarySort = sort;
+    notifyListeners();
   }
 
   final ProgressStore progress;

@@ -37,4 +37,10 @@ class ProgressStore {
   Future<void> saveFontScale(double scale) async {
     await _prefs.setDouble('settings.fontScale', scale);
   }
+
+  String get displayMode => _prefs.getString('settings.displayMode') ?? 'grid';
+
+  Future<void> saveDisplayMode(String mode) async {
+    await _prefs.setString('settings.displayMode', mode);
+  }
 }

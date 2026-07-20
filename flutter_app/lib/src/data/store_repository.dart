@@ -104,6 +104,7 @@ class StoreRepository {
         final poster = await package.extractArtwork(
           const ['poster.jpg', 'poster.png', 'cover.jpg', 'cover.png'],
         );
+        final banner = await package.extractArtwork(const ['banner.jpg', 'banner.png']);
         books.add(LocalBook(
           id: (metadata['folder'] as String?) ?? bookId,
           title: (metadata['title'] as String?) ?? bookId,
@@ -113,6 +114,7 @@ class StoreRepository {
           version: (metadata['version'] as String?) ?? '',
           filePath: entity.path,
           posterFile: poster?.path,
+          bannerFile: banner?.path,
           hasProgress: _progress.hasProgress((metadata['folder'] as String?) ?? bookId),
         ));
       } catch (_) {

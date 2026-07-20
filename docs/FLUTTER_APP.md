@@ -1,6 +1,6 @@
 # StoryBoy Flutter App
 
-`flutter_app/` is the Flutter client, chosen (2026-07-19) to become the primary phone app: Android now, iOS later. The Kotlin app in `app/` remains the currently shipped build until the Flutter app reaches parity and takes over the release channel.
+`flutter_app/` is the Flutter client, chosen (2026-07-19) to become the primary phone app: Android now, iOS later. It took over the release channel with v0.20.0 (versionCode 21); the Kotlin app in `app/` is retired from releases and kept only as reference.
 
 ## Identity and versioning
 
@@ -23,12 +23,17 @@ lib/
     story_models.dart        runtime story types incl. CollectionConfig and CollectionItem
     story_parser.dart        Dart port of the story.json parser (all aliases supported)
   src/screens/
-    library_screen.dart      poster grid of downloaded books
-    store_screen.dart        catalogue list with price/owned badges
+    browse_widgets.dart      shared header, search, view/filter menus for Library and Store
+    library_screen.dart      downloaded books; grid/list, search, genre + progress filter, sort
+    store_screen.dart        catalogue; grid/list, search, genre filter, price/owned badges
     book_detail_screen.dart  full-page detail (hero, stats grid, about, actions)
     reader_screen.dart       full engine: 7 node types, collections, battles, puzzles
-    settings_screen.dart     Supabase account, reader text size, about
+    settings_screen.dart     Supabase account, reader text size, app updates, about
 ```
+
+## Browse organization
+
+Library and Store share `browse_widgets.dart`: a title header with action buttons, a search field, a grid/list `ViewMenuButton`, and a `FilterMenuButton`. The chosen display mode (grid vs list) persists via `ProgressStore`. Library adds title/author sort and an in-progress/not-started progress filter; both tabs filter by genre and free-text search across title, author, genre, and description. Grid uses 2:3 posters; list uses 3:2 banners (falling back to the poster when a package has no banner).
 
 ## Behavior contracts
 
@@ -60,5 +65,4 @@ release: publish a Flutter APK with a higher `versionCode` as `storyboy-debug.ap
 ## Not yet ported
 
 - Appearance settings beyond text size (dark/light mode toggle, motion modes)
-- Library filters/sort/search and cartridge list view
 - Google/Facebook OAuth (needs provider setup in the Supabase dashboard first)

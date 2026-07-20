@@ -125,6 +125,7 @@ class LocalBook {
     required this.version,
     required this.filePath,
     required this.posterFile,
+    required this.bannerFile,
     required this.hasProgress,
   });
 
@@ -136,5 +137,6 @@ class LocalBook {
   final String version;
   final String filePath;
   final String? posterFile;
+  final String? bannerFile;
   final bool hasProgress;
 }
