@@ -26,7 +26,12 @@ class _ReaderScreenState extends State<ReaderScreen> {
   StoryNode? _node;
   Set<String> _inventoryIds = {};
   Set<String> _evidenceIds = {};
+  final Map<String, int> _stats = {};
   BattleResult? _battleResult;
+  _CheckOutcome? _checkOutcome;
+  int? _enemyHp;
+  final List<String> _combatLog = [];
+  String? _combatEndTarget;
   bool _showInventory = false;
   bool _showEvidence = false;
   String? _expandedItemId;
@@ -53,11 +58,16 @@ class _ReaderScreenState extends State<ReaderScreen> {
       final story = package.readStory();
       final progress = widget.model.progress;
       final savedNode = progress.currentNode(story.id);
+      final savedStats = progress.stats(story.id);
       setState(() {
         _package = package;
         _story = story;
         _inventoryIds = progress.collectedIds(story.id, 'inventory');
         _evidenceIds = progress.collectedIds(story.id, 'evidence');
+        _stats.clear();
+        for (final stat in story.stats) {
+          _stats[stat.id] = savedStats[stat.id] ?? stat.start;
+        }
       });
       _enterNode(
         savedNode != null && story.nodes.containsKey(savedNode) ? savedNode : story.startNodeId,
@@ -75,18 +85,37 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
     final inventoryIds = {..._inventoryIds, ...node.inventoryGained.map((item) => item.id)};
     final evidenceIds = {..._evidenceIds, ...node.evidenceGained.map((item) => item.id)};
+    _applyStatChanges(story, node.statChanges);
     final progress = widget.model.progress;
     progress.saveCurrentNode(story.id, nodeId);
     progress.saveCollectedIds(story.id, 'inventory', inventoryIds);
     progress.saveCollectedIds(story.id, 'evidence', evidenceIds);
+    progress.saveStats(story.id, _stats);
 
     setState(() {
       _node = node;
       _inventoryIds = inventoryIds;
       _evidenceIds = evidenceIds;
       _battleResult = null;
+      _checkOutcome = null;
+      _enemyHp = node.combat?.enemyHp;
+      _combatLog.clear();
+      _combatEndTarget = null;
       _answerController.clear();
     });
+  }
+
+  void _applyStatChanges(StoryGamebook story, List<StatChange> changes) {
+    if (changes.isEmpty) return;
+    final byId = {for (final stat in story.stats) stat.id: stat};
+    for (final change in changes) {
+      final def = byId[change.statId];
+      final current = _stats[change.statId] ?? def?.start ?? 0;
+      var next = change.set ? change.amount : current + change.amount;
+      if (def?.max != null && next > def!.max!) next = def.max!;
+      if (next < 0) next = 0;
+      _stats[change.statId] = next;
+    }
   }
 
   void _restart() {
@@ -95,7 +124,16 @@ class _ReaderScreenState extends State<ReaderScreen> {
     widget.model.progress.reset(story.id);
     _inventoryIds = {};
     _evidenceIds = {};
+    _stats.clear();
+    for (final stat in story.stats) {
+      _stats[stat.id] = stat.start;
+    }
     _enterNode(story.startNodeId);
+  }
+
+  String _resolveHealthStatId(StoryGamebook story, CombatConfig combat) {
+    if (_stats.containsKey(combat.healthStatId)) return combat.healthStatId;
+    return story.healthStat?.id ?? combat.healthStatId;
   }
 
   void _submitAnswer() {
@@ -150,6 +188,101 @@ class _ReaderScreenState extends State<ReaderScreen> {
     });
   }
 
+  void _rollCheck() {
+    final node = _node;
+    final check = node?.check;
+    if (check == null) return;
+    final rolls = _rollDiceList(check.dice);
+    final statBonus = check.statModifier != null ? (_stats[check.statModifier] ?? 0) : 0;
+    final total = rolls.fold(0, (a, b) => a + b) + check.modifier + statBonus;
+    final success = total >= check.target;
+    setState(() {
+      _checkOutcome = _CheckOutcome(
+        rolls: rolls,
+        bonus: check.modifier + statBonus,
+        total: total,
+        target: check.target,
+        success: success,
+        targetId: success ? check.successTargetId : check.failureTargetId,
+        label: success ? check.successLabel : check.failureLabel,
+      );
+    });
+  }
+
+  void _combatRound(CombatConfig combat) {
+    final story = _story;
+    if (story == null) return;
+    final healthId = _resolveHealthStatId(story, combat);
+    var enemyHp = _enemyHp ?? combat.enemyHp;
+    var playerHp = _stats[healthId] ?? 0;
+    final log = <String>[];
+
+    final playerRoll = _random.nextInt(20) + 1;
+    if (playerRoll + combat.playerHitBonus >= combat.enemyHitTarget) {
+      final dmg = _rollDiceList(combat.playerDamage).fold(0, (a, b) => a + b) + combat.playerDamageBonus;
+      enemyHp -= dmg;
+      log.add('You hit (rolled $playerRoll) for $dmg damage.');
+    } else {
+      log.add('You miss (rolled $playerRoll).');
+    }
+
+    if (enemyHp > 0) {
+      final enemyRoll = _random.nextInt(20) + 1;
+      if (enemyRoll >= combat.monsterHitsOn) {
+        final dmg = _rollDiceList(combat.enemyDamage).fold(0, (a, b) => a + b);
+        playerHp -= dmg;
+        log.add('${combat.enemyLabel} hits (rolled $enemyRoll) for $dmg damage.');
+      } else {
+        log.add('${combat.enemyLabel} misses (rolled $enemyRoll).');
+      }
+    }
+
+    if (enemyHp < 0) enemyHp = 0;
+    if (playerHp < 0) playerHp = 0;
+    setState(() {
+      _enemyHp = enemyHp;
+      _stats[healthId] = playerHp;
+      _combatLog
+        ..clear()
+        ..addAll(log);
+      if (enemyHp <= 0) {
+        _combatEndTarget = combat.winTargetId;
+      } else if (playerHp <= 0) {
+        _combatEndTarget = combat.loseTargetId;
+      }
+    });
+    widget.model.progress.saveStats(story.id, _stats);
+  }
+
+  void _flee(CombatConfig combat) {
+    final story = _story;
+    if (story == null || combat.fleeTargetId == null) return;
+    final healthId = _resolveHealthStatId(story, combat);
+    var playerHp = _stats[healthId] ?? 0;
+    final enemyRoll = _random.nextInt(20) + 1;
+    final log = <String>[];
+    if (enemyRoll >= combat.monsterHitsOn) {
+      final dmg = _rollDiceList(combat.enemyDamage).fold(0, (a, b) => a + b);
+      playerHp -= dmg;
+      log.add('${combat.enemyLabel} strikes as you flee for $dmg damage.');
+    } else {
+      log.add('You slip away cleanly.');
+    }
+    if (playerHp < 0) playerHp = 0;
+    _stats[healthId] = playerHp;
+    widget.model.progress.saveStats(story.id, _stats);
+    if (playerHp <= 0) {
+      setState(() {
+        _combatLog
+          ..clear()
+          ..addAll(log);
+        _combatEndTarget = combat.loseTargetId;
+      });
+    } else {
+      _enterNode(combat.fleeTargetId!);
+    }
+  }
+
   List<CollectionItem> get _collectedInventory {
     final story = _story;
     if (story == null) return const [];
@@ -189,6 +322,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
                     children: [
+                      _statBar(story),
                       _collectionBar(story),
                       if (_showInventory && story.inventoryConfig.enabled)
                         _collectionPanel(story.inventoryConfig.label, _collectedInventory),
@@ -204,6 +338,33 @@ class _ReaderScreenState extends State<ReaderScreen> {
                       ..._nodeActions(node),
                     ],
                   ),
+      ),
+    );
+  }
+
+  Widget _statBar(StoryGamebook story) {
+    final visible = story.stats.where((stat) => !stat.hidden).toList();
+    if (visible.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        children: [
+          for (final stat in visible)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: SbColors.surface2,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: SbColors.line),
+              ),
+              child: Text(
+                stat.display(_stats[stat.id] ?? stat.start),
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -356,6 +517,14 @@ class _ReaderScreenState extends State<ReaderScreen> {
       return _battleActions(node.battle!);
     }
 
+    if (node.type == 'check' && node.check != null) {
+      return _checkActions(node.check!);
+    }
+
+    if (node.type == 'combat' && node.combat != null) {
+      return _combatActions(node.combat!);
+    }
+
     if (node.choices.isEmpty) {
       return [
         const Center(child: Text('The End', style: TextStyle(fontSize: 24))),
@@ -432,4 +601,119 @@ class _ReaderScreenState extends State<ReaderScreen> {
     if (bonus == 0 && !always) return '';
     return bonus >= 0 ? ' +$bonus' : ' $bonus';
   }
+
+  List<Widget> _checkActions(CheckConfig check) {
+    final outcome = _checkOutcome;
+    final line = const TextStyle(color: SbColors.muted, fontSize: 14);
+    return [
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: SbColors.surface,
+          border: Border.all(color: SbColors.line),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Roll ${check.dice}${_bonusText(check.modifier)} — need ${check.target}+', style: line),
+            if (outcome != null) ...[
+              const Divider(),
+              Text(
+                outcome.label,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              Text(
+                'Rolled ${outcome.rolls.join(' + ')}${_bonusText(outcome.bonus)} = '
+                '${outcome.total} vs ${outcome.target}',
+                style: line,
+              ),
+            ],
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
+      if (outcome == null)
+        FilledButton(onPressed: _rollCheck, child: const Text('Roll'))
+      else
+        FilledButton(
+          onPressed: () => _enterNode(outcome.targetId),
+          child: const Text('Continue'),
+        ),
+    ];
+  }
+
+  List<Widget> _combatActions(CombatConfig combat) {
+    final line = const TextStyle(color: SbColors.muted, fontSize: 14);
+    final enemyHp = _enemyHp ?? combat.enemyHp;
+    final ended = _combatEndTarget != null;
+    return [
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: SbColors.surface,
+          border: Border.all(color: SbColors.line),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(combat.enemyLabel,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                Text('HP $enemyHp', style: line),
+              ],
+            ),
+            for (final entry in _combatLog)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(entry, style: line),
+              ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
+      if (ended)
+        FilledButton(
+          onPressed: () => _enterNode(_combatEndTarget!),
+          child: const Text('Continue'),
+        )
+      else ...[
+        FilledButton(onPressed: () => _combatRound(combat), child: const Text('Attack')),
+        if (combat.talkTargetId != null) ...[
+          const SizedBox(height: 10),
+          FilledButton(
+            onPressed: () => _enterNode(combat.talkTargetId!),
+            child: Text(combat.talkLabel),
+          ),
+        ],
+        if (combat.fleeTargetId != null) ...[
+          const SizedBox(height: 10),
+          FilledButton(onPressed: () => _flee(combat), child: const Text('Run away')),
+        ],
+      ],
+    ];
+  }
+}
+
+class _CheckOutcome {
+  const _CheckOutcome({
+    required this.rolls,
+    required this.bonus,
+    required this.total,
+    required this.target,
+    required this.success,
+    required this.targetId,
+    required this.label,
+  });
+
+  final List<int> rolls;
+  final int bonus;
+  final int total;
+  final int target;
+  final bool success;
+  final String targetId;
+  final String label;
 }

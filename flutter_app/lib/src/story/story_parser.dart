@@ -37,7 +37,10 @@ StoryGamebook parseStoryGamebook(Map<String, dynamic> source) {
     }
   }
 
-  final collections = (source['collections'] as Map?)?.cast<String, dynamic>() ?? const {};
+  final systems = (source['systems'] as Map?)?.cast<String, dynamic>() ?? const {};
+  final collections = (source['collections'] as Map?)?.cast<String, dynamic>() ??
+      (systems['collections'] as Map?)?.cast<String, dynamic>() ??
+      const {};
   return StoryGamebook(
     id: (metadata['folder'] as String?) ?? (metadata['id'] as String?) ?? 'gamebook',
     title: (metadata['title'] as String?) ?? 'Gamebook',
@@ -45,6 +48,7 @@ StoryGamebook parseStoryGamebook(Map<String, dynamic> source) {
     nodes: nodes,
     inventoryCatalog: inventoryCatalog,
     evidenceCatalog: evidenceCatalog,
+    stats: _parseStats(source['stats'] ?? systems['stats']),
     inventoryConfig: _parseCollectionConfig(
       (collections['inventory'] ?? collections['items']) as Map?,
       defaultLabel: 'Items',
@@ -56,6 +60,44 @@ StoryGamebook parseStoryGamebook(Map<String, dynamic> source) {
       hasEntries: evidenceCatalog.isNotEmpty,
     ),
   );
+}
+
+List<StatDef> _parseStats(dynamic raw) {
+  if (raw is! List) return const [];
+  final stats = <StatDef>[];
+  for (final entry in raw) {
+    if (entry is! Map) continue;
+    final json = entry.cast<String, dynamic>();
+    final id = (json['id'] as String?)?.trim() ?? '';
+    if (id.isEmpty) continue;
+    final roleText = (json['role'] as String?)?.toLowerCase() ??
+        ((json['is_health'] == true || json['health'] == true) ? 'health' : 'normal');
+    final label = _firstString(json, ['label', 'name', 'title']) ?? _displayTitle(id);
+    stats.add(StatDef(
+      id: id,
+      label: label,
+      start: _firstInt(json, ['start', 'value', 'initial', 'default']) ?? 0,
+      max: _firstInt(json, ['max', 'maximum']),
+      role: roleText == 'health' ? StatRole.health : StatRole.normal,
+      hidden: json['hidden'] == true,
+    ));
+  }
+  return stats;
+}
+
+List<StatChange> _parseStatChanges(Map<String, dynamic> json) {
+  final changes = <StatChange>[];
+  void collect(dynamic raw, {required bool set}) {
+    if (raw is Map) {
+      raw.forEach((key, value) {
+        if (value is num) changes.add(StatChange(statId: key as String, amount: value.toInt(), set: set));
+      });
+    }
+  }
+
+  collect(json['stat_changes'] ?? json['adjust_stats'] ?? json['gain_stats'], set: false);
+  collect(json['set_stats'], set: true);
+  return changes;
 }
 
 CollectionConfig _parseCollectionConfig(
@@ -103,6 +145,13 @@ StoryNode _parseNode(Map<String, dynamic> json, {String? fallbackId}) {
       return _parseMapNode(json, id);
     case 'battle':
       return _parseBattleNode(json, id);
+    case 'check':
+    case 'test':
+    case 'save':
+      return _parseCheckNode(json, id);
+    case 'combat':
+    case 'fight':
+      return _parseCombatNode(json, id);
     default:
       return StoryNode(
         id: id,
@@ -112,8 +161,72 @@ StoryNode _parseNode(Map<String, dynamic> json, {String? fallbackId}) {
         choices: _parseChoices(json['choices']),
         inventoryGained: _parseGained(json, _inventoryKeys),
         evidenceGained: _parseGained(json, _evidenceKeys),
+        statChanges: _parseStatChanges(json),
       );
   }
+}
+
+StoryNode _parseCheckNode(Map<String, dynamic> json, String id) {
+  return StoryNode(
+    id: id,
+    type: 'check',
+    text: (json['text'] as String?) ?? (json['prompt'] as String?) ?? '',
+    images: _parseImages(json),
+    inventoryGained: _parseGained(json, _inventoryKeys),
+    evidenceGained: _parseGained(json, _evidenceKeys),
+    statChanges: _parseStatChanges(json),
+    check: CheckConfig(
+      dice: _firstString(json, ['dice', 'roll']) ?? '1d20',
+      modifier: _firstInt(json, ['modifier', 'bonus']) ?? 0,
+      statModifier: _firstString(json, ['stat_modifier', 'modifier_stat', 'stat']),
+      target: _firstInt(json, ['target', 'difficulty', 'dc', 'against']) ?? 10,
+      successTargetId: _firstString(json, ['success_target', 'on_success', 'pass_target']) ?? '',
+      failureTargetId:
+          _firstString(json, ['failure_target', 'on_failure', 'fail_target', 'default_target']) ?? '',
+      successLabel: _firstString(json, ['success_label']) ?? 'Success',
+      failureLabel: _firstString(json, ['failure_label']) ?? 'Failure',
+    ),
+  );
+}
+
+StoryNode _parseCombatNode(Map<String, dynamic> json, String id) {
+  final enemy = ((json['enemy'] ?? json['monster'] ?? const {}) as Map).cast<String, dynamic>();
+  final player = ((json['player'] ?? const {}) as Map).cast<String, dynamic>();
+  return StoryNode(
+    id: id,
+    type: 'combat',
+    text: (json['text'] as String?) ?? (json['title'] as String?) ?? '',
+    images: _parseImages(json),
+    inventoryGained: _parseGained(json, _inventoryKeys),
+    evidenceGained: _parseGained(json, _evidenceKeys),
+    statChanges: _parseStatChanges(json),
+    combat: CombatConfig(
+      enemyLabel: _firstString(enemy, ['label', 'name', 'title']) ??
+          _firstString(json, ['enemy_label', 'enemy_name']) ??
+          'Enemy',
+      enemyHp: _firstInt(enemy, ['hp', 'health', 'hit_points']) ?? _firstInt(json, ['enemy_hp']) ?? 1,
+      enemyHitTarget: _firstInt(enemy, ['hit_target', 'to_hit', 'ac', 'armor_class']) ??
+          _firstInt(json, ['enemy_hit_target']) ??
+          10,
+      enemyDamage: _firstString(enemy, ['damage', 'damage_dice']) ?? '1d6',
+      playerDamage: _firstString(player, ['damage', 'damage_dice']) ??
+          _firstString(json, ['player_damage']) ??
+          '1d6',
+      playerDamageBonus:
+          _firstInt(player, ['damage_bonus', 'bonus']) ?? _firstInt(json, ['player_damage_bonus']) ?? 0,
+      playerHitBonus: _firstInt(player, ['hit_bonus', 'to_hit_bonus']) ?? 0,
+      monsterHitsOn: _firstInt(enemy, ['hits_on', 'hit_you_on', 'attack_target']) ??
+          _firstInt(json, ['monster_hits_on']) ??
+          11,
+      winTargetId: _firstString(json, ['win_target', 'on_win', 'victory_target']) ?? '',
+      loseTargetId:
+          _firstString(json, ['lose_target', 'on_lose', 'death_target', 'defeat_target']) ?? '',
+      healthStatId: _firstString(json, ['health_stat']) ?? 'hp',
+      fleeTargetId: _firstString(json, ['flee_target', 'run_target', 'escape_target']),
+      talkTargetId: _firstString(json, ['talk_target']),
+      talkLabel: _firstString(json, ['talk_label']) ?? 'Talk',
+    ),
+  );
 }
 
 StoryNode _parseLoreNode(Map<String, dynamic> json, String id) {
@@ -140,6 +253,7 @@ StoryNode _parseLoreNode(Map<String, dynamic> json, String id) {
     choices: returnTo.isEmpty ? const [] : [StoryChoice(text: 'Continue', targetId: returnTo)],
     inventoryGained: _parseGained(json, _inventoryKeys),
     evidenceGained: _parseGained(json, _evidenceKeys),
+    statChanges: _parseStatChanges(json),
   );
 }
 
@@ -154,6 +268,7 @@ StoryNode _parsePuzzleNode(Map<String, dynamic> json, String id) {
     images: _parseImages(json),
     inventoryGained: _parseGained(json, _inventoryKeys),
     evidenceGained: _parseGained(json, _evidenceKeys),
+    statChanges: _parseStatChanges(json),
     acceptedAnswers: answers,
     correctTargetId: _firstString(json, ['correct_target', 'correctTarget']),
     incorrectTargetId: _firstString(json, [
@@ -179,6 +294,7 @@ StoryNode _parseCollectionNode(Map<String, dynamic> json, String id, String type
     choices: choices,
     inventoryGained: _parseGained(json, _inventoryKeys),
     evidenceGained: _parseGained(json, _evidenceKeys),
+    statChanges: _parseStatChanges(json),
   );
 }
 
@@ -200,6 +316,7 @@ StoryNode _parseMapNode(Map<String, dynamic> json, String id) {
     choices: _parseChoices(json['choices']),
     inventoryGained: _parseGained(json, _inventoryKeys),
     evidenceGained: _parseGained(json, _evidenceKeys),
+    statChanges: _parseStatChanges(json),
     mapLocations: locations,
   );
 }
@@ -224,6 +341,7 @@ StoryNode _parseBattleNode(Map<String, dynamic> json, String id) {
     images: _parseImages(json),
     inventoryGained: _parseGained(json, _inventoryKeys),
     evidenceGained: _parseGained(json, _evidenceKeys),
+    statChanges: _parseStatChanges(json),
     battle: BattleConfig(
       playerDice: _firstString(battleJson, ['player_dice', 'playerDice']) ?? '1d6',
       opponentDice:

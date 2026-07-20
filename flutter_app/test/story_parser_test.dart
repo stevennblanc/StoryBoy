@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:storyboy/src/story/story_models.dart';
 import 'package:storyboy/src/story/story_parser.dart';
 
 void main() {
@@ -85,5 +86,106 @@ void main() {
     expect(battle.playerDice, '2d6');
     expect(battle.winTargetId, 'won');
     expect(battle.itemModifiers.single.itemId, 'knuckles');
+  });
+
+  test('stats parse with renamable labels, health role, and defaults', () {
+    final story = parseStoryGamebook({
+      'metadata': {'title': 'T', 'folder': 't', 'start_node': 'a'},
+      'stats': [
+        {'id': 'hp', 'label': 'Shields', 'start': 8, 'max': 8, 'role': 'health'},
+        {'id': 'ac'},
+      ],
+      'nodes': [
+        {'id': 'a', 'type': 'text', 'text': 'x'},
+      ],
+    });
+
+    expect(story.stats, hasLength(2));
+    final hp = story.stats.first;
+    expect(hp.label, 'Shields');
+    expect(hp.max, 8);
+    expect(hp.role, StatRole.health);
+    expect(story.healthStat!.id, 'hp');
+    // Undeclared label falls back to a title-cased id.
+    expect(story.stats[1].label, 'Ac');
+    expect(story.stats[1].start, 0);
+  });
+
+  test('stat_changes and set_stats parse on any node', () {
+    final story = parseStoryGamebook({
+      'metadata': {'title': 'T', 'folder': 't', 'start_node': 'a'},
+      'nodes': [
+        {
+          'id': 'a',
+          'type': 'text',
+          'text': 'x',
+          'stat_changes': {'gold': 100, 'hp': -2},
+          'set_stats': {'hp': 8},
+        },
+      ],
+    });
+
+    final changes = story.node('a').statChanges;
+    expect(changes, hasLength(3));
+    expect(changes.any((c) => c.statId == 'gold' && c.amount == 100 && !c.set), true);
+    expect(changes.any((c) => c.statId == 'hp' && c.amount == 8 && c.set), true);
+  });
+
+  test('check node parses dice, target, and routing', () {
+    final story = parseStoryGamebook({
+      'metadata': {'title': 'T', 'folder': 't', 'start_node': 'trap'},
+      'nodes': [
+        {
+          'id': 'trap',
+          'type': 'check',
+          'text': 'A blade springs out!',
+          'dice': '1d20',
+          'target': 13,
+          'success_target': 'safe',
+          'failure_target': 'hurt',
+        },
+        {'id': 'safe', 'type': 'text', 'text': 's'},
+        {'id': 'hurt', 'type': 'text', 'text': 'h'},
+      ],
+    });
+
+    final check = story.node('trap').check!;
+    expect(check.dice, '1d20');
+    expect(check.target, 13);
+    expect(check.successTargetId, 'safe');
+    expect(check.failureTargetId, 'hurt');
+  });
+
+  test('combat node parses enemy, player, and death routing', () {
+    final story = parseStoryGamebook({
+      'metadata': {'title': 'T', 'folder': 't', 'start_node': 'fight'},
+      'nodes': [
+        {
+          'id': 'fight',
+          'type': 'combat',
+          'text': 'A creature lunges!',
+          'enemy': {'label': 'Cave Lurker', 'hp': 6, 'hit_target': 9, 'damage': '1d6', 'hits_on': 12},
+          'player': {'damage': '1d8', 'damage_bonus': 2, 'hit_bonus': 1},
+          'health_stat': 'hp',
+          'win_target': 'won',
+          'lose_target': 'died',
+          'flee_target': 'fled',
+        },
+        {'id': 'won', 'type': 'text', 'text': 'w'},
+        {'id': 'died', 'type': 'text', 'text': 'd'},
+        {'id': 'fled', 'type': 'text', 'text': 'f'},
+      ],
+    });
+
+    final combat = story.node('fight').combat!;
+    expect(combat.enemyLabel, 'Cave Lurker');
+    expect(combat.enemyHp, 6);
+    expect(combat.enemyHitTarget, 9);
+    expect(combat.monsterHitsOn, 12);
+    expect(combat.playerDamage, '1d8');
+    expect(combat.playerDamageBonus, 2);
+    expect(combat.winTargetId, 'won');
+    expect(combat.loseTargetId, 'died');
+    expect(combat.fleeTargetId, 'fled');
   });
 }

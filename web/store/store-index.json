@@ -21,6 +21,17 @@
       "downloadUrl": "/store/anya-suitcase-scenic-route.gbk",
       "posterUrl": "/store/anya-suitcase-scenic-route-poster.jpg",
       "bannerUrl": "/store/anya-suitcase-scenic-route-banner.jpg"
+    },
+    {
+      "id": "the_sunken_vault",
+      "title": "The Sunken Vault",
+      "author": "StoryBoy",
+      "genre": "Dungeon Crawl",
+      "version": "0.1.0",
+      "description": "A short solo delve that teaches StoryBoy's adventure systems: character stats, a luck check, and a real fight where your health matters.",
+      "downloadUrl": "/store/the-sunken-vault.gbk",
+      "posterUrl": "/store/the-sunken-vault-poster.jpg",
+      "bannerUrl": "/store/the-sunken-vault-banner.jpg"
     }
   ]
 }

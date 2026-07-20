@@ -1,6 +1,6 @@
 {
-  "versionCode": 24,
-  "versionName": "0.21.2",
+  "versionCode": 25,
+  "versionName": "0.22.0",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "The updater now shows a download progress bar and the release notes for each update before you install it."
+  "releaseNotes": "New adventure systems: renamable, hideable character stats (Health, Armor Class, and custom stats), a luck/skill check node, and round-based combat with damage and death. Books opt in to each system, so simpler stories stay uncluttered."
 }

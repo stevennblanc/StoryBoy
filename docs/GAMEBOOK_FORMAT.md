@@ -239,6 +239,69 @@ Grant inventory from any node with `items`, `inventory`, `gain_inventory`, or `g
 }
 ```
 
+## Character Stats
+
+A book may define numeric stats (health, armor, a currency, or anything). Stats are opt-in: a book that defines none shows no stat bar.
+
+```json
+{
+  "stats": [
+    { "id": "hp", "label": "Health", "start": 8, "max": 8, "role": "health" },
+    { "id": "ac", "label": "Armor Class", "start": 9 }
+  ]
+}
+```
+
+- `label` is the display name and every default can be overridden — a sci-fi book can label `hp` "Shields" and a currency "Credits". If omitted, the label falls back to a title-cased `id`.
+- `role: "health"` marks the stat whose reaching zero ends the run (only one is needed). `max` caps the value.
+- `hidden: true` tracks a stat without showing it in the bar (useful for flags).
+
+Any node can change stats when entered:
+
+```json
+{ "id": "trap_room", "type": "text", "text": "The dart grazes you.",
+  "stat_changes": { "hp": -3, "gold": 10 },
+  "set_stats": { "torch": 0 } }
+```
+
+`stat_changes` adds/subtracts; `set_stats` assigns an absolute value. Values are clamped to `[0, max]`.
+
+## Check Nodes
+
+A check is a single roll — a saving throw or luck test — that routes on success or failure. Lighter than combat; good for hazards, leaps, and locks.
+
+```json
+{ "id": "bridge", "type": "check",
+  "text": "The bridge gives way. Keep your balance!",
+  "dice": "1d20", "modifier": 0, "target": 11,
+  "success_target": "gallery", "failure_target": "slip" }
+```
+
+- Roll `dice` + `modifier` (+ optional `stat_modifier` stat value); meet or beat `target` for success.
+- `success_label` / `failure_label` customize the result heading.
+
+## Combat Nodes
+
+Round-based combat against a single enemy. The player rolls to hit the enemy; the enemy rolls to hit the player's health stat. Reaching zero enemy HP wins; the health stat reaching zero routes to the lose target (typically a death ending).
+
+```json
+{ "id": "fight_gloamworm", "type": "combat", "text": "The gloamworm strikes!",
+  "enemy": { "label": "Gloamworm", "hp": 6, "hit_target": 9, "damage": "1d4", "hits_on": 13 },
+  "player": { "damage": "1d6", "damage_bonus": 2, "hit_bonus": 0 },
+  "health_stat": "hp",
+  "win_target": "vault", "lose_target": "death", "flee_target": "flee_out" }
+```
+
+- `enemy.hit_target` — the number the player must roll (1d20 + `player.hit_bonus`) to hit.
+- `enemy.hits_on` — the number the enemy must roll to hit the player.
+- `flee_target` (optional) lets the player run, taking a free enemy attack; `talk_target` adds a talk option.
+
+Combat is heavier than a `battle` node (an opposed one-roll luck check) — use `battle`/`check` for quick chance beats and `combat` for real fights.
+
+## Opt-in and renaming
+
+Every system — collections, stats, checks, combat — is off until a book uses it, and every label has a default the book can override. A simple story that defines no stats and uses no combat shows none of it. This keeps genres from bleeding UI into each other: a detective book shows "Evidence," a dungeon shows "Health / Armor Class," a travel comedy shows nothing extra.
+
 ## Map Nodes
 
 Use map nodes for travel or investigation hubs.
