@@ -56,6 +56,26 @@ Driven by what the player understood and who they carried, not by a boss's hit p
 - **The bad delve** — you die in the dark, like the crew did.
 - Each crosses with **Cass out / Cass lost**, which changes the final scene rather than the ending's category.
 
+## The scene at the mouth
+
+The last scene of the book is his sister, and it is the payoff the whole companion arc exists for. It varies on **his fate crossed with what you knew** — six versions, not one with a variable line.
+
+| | Knew she was his sister | Never found out |
+| --- | --- | --- |
+| **Carried out** | She sees him over your shoulder. The reunion, and she knows you knew — you chose it. | She runs past you to him. You learn what you did only now, from her face. |
+| **Left behind** | She asks, and you already know the answer she wants. You say it anyway. | She asks whether you saw anyone. You describe him — the limp, the lying. She stops packing up her stall. |
+| **Killed** | You knew, you did it, and she is still standing there. | You find out what you took from her while she is asking after him. |
+
+The bottom-right is the cruellest thing in the book and no player chooses it — they simply were not listening when Cass talked. That case is the reason the reveal is missable.
+
+**Killing him must be genuinely available**, not an accident and not a trap that punishes the player for taking it. He steals and lies; there is a moment where turning on him is a real option, and the book does not editorialise.
+
+**Flags:** `cass_out`, `cass_killed`, `cass_sister_known`. The exit node carries six choices with mutually exclusive and exhaustive conditions, so exactly one is visible and the player only ever sees "Climb out into the light."
+
+> **Guard this.** Both readers evaluate `flag` and `not_flag` in the same `requires` block, so the pattern works today with no engine change. The hazard is not the logic, it is exhaustiveness: a gap in the predicates means **zero visible choices at the final node of the book**. Author the six, then verify all six reachable states resolve to exactly one exit before shipping.
+
+Optional refinement if it earns its place: split *left behind* into abandoned versus died-on-the-way. Same scene, different weight of guilt.
+
 ## Authoring rules
 
 - Combat carries less of the pacing than it does now. Fights should be avoidable, optional, or *about* something — Ruen is the model.

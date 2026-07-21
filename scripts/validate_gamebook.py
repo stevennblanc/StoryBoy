@@ -249,6 +249,15 @@ def validate(path: Path) -> Report:
         if not has_exit and node_type not in ENDING_TYPES:
             report.error(f"{node_id}: type '{node_type}' has no choices and no target - dead end")
 
+        # Every choice being conditional means a player meeting none of them is
+        # stranded with no way out. A choice with locked_text still renders, but
+        # it renders disabled, so it is not an exit either.
+        if choices and not any(f in node for f in TARGET_FIELDS):
+            if all(c.get("requires") for c in choices):
+                report.error(
+                    f"{node_id}: every choice is conditional - a player meeting none of them is stranded"
+                )
+
     # --- catalog-level use effects ---------------------------------------
     for entry in (story.get("inventory") or []) + (story.get("items") or []):
         if isinstance(entry, dict):
