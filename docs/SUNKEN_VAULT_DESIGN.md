@@ -42,17 +42,18 @@ Walking wounded. Moves on his own, flinches from every fight, hides when it star
 | --- | --- | --- | --- | --- |
 | I | The Flooded Galleries | Arrival, outfitting, the first evidence that people died here. Scavenging tone, cold and procedural. | Odo dead, Sethe pinned | 60–70 — **written, 0.9.0** |
 | II | The Drowned Crypt | Cass found and the book gains a voice. The records begin explaining the keepers. Bleaker, stranger. | Cass, Ruen turned | 70–80 — **core written, 0.10.0** |
-| III | The Sanctum | The keepers' story completes and Ismene forces the choice. Quiet, not loud. | Ismene | 50–60 |
+| III | The Sanctum | The keepers' story completes and Ismene forces the choice. Quiet, not loud. | Ismene | 50–60 — **written, 1.0.0** |
 
 Mostly one-way: descending is easy, climbing back is a deliberate cost. The way *out* at the end is its own sequence, and is where carrying Cass is felt hardest.
 
 ## Endings
 
-Driven by what the player understood and who they carried, not by a boss's hit points. Sketch, to be firmed up while writing Tier III:
+Driven by what the player understood and who they carried, not by a boss's hit points. Settled in 1.0.0, and decided by who ends up holding the post:
 
-- **The keeping** — someone has to hold the post. Ismene will, if you let her. You leave with your life and the coast stays dry.
-- **The breaking** — kill the Priest, take everything, and the seal fails behind you. Richest ending, and the coast floods a fourth time. The book does not tell you off for it.
-- **The relief** — the Priest has held the post for centuries and wants to be let go. Understanding this requires having read the records.
+- **Ismene holds it** — she volunteers, and has meant to since day four. You leave; the coast stays dry; she does not come back.
+- **Nobody holds it** — kill the Priest, take everything, and the water starts moving behind you as you climb. Richest ending. The book does not tell you off for it.
+- **You hold it** — you take the post so the others can walk out. The only ending where you never reach the mouth.
+- **The Priest goes on holding it** — you climb out and change nothing, which is not the same as achieving nothing.
 - **The bad delve** — you die in the dark, like the crew did.
 - Each crosses with **Cass out / Cass lost**, which changes the final scene rather than the ending's category.
 

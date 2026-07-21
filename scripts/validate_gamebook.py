@@ -93,6 +93,49 @@ def item_ids(entries) -> set[str]:
     return found
 
 
+FLAG_KEYS = ("flag", "flags", "has_flag")
+NOT_FLAG_KEYS = ("not_flag", "not_flags", "without_flag")
+OTHER_PREDICATES = (
+    "item", "items", "has_item", "not_item", "without_item", "missing_item",
+    "equipment", "gear", "equipped", "evidence",
+    "character", "characters", "class", "not_character", "not_characters", "not_class",
+    "stat", "stats",
+)
+
+
+def flag_gap(choices: list[dict]):
+    """Find a flag state where no choice is available.
+
+    Returns None if the conditions are not purely flag-based (undecidable here),
+    "" if every combination is covered, or a description of one that is not.
+    """
+    required, forbidden, flags = [], [], set()
+    for choice in choices:
+        requires = choice.get("requires") or {}
+        if not isinstance(requires, dict):
+            return None
+        if any(key in requires for key in OTHER_PREDICATES):
+            return None
+        need = {v for key in FLAG_KEYS for v in as_list(requires.get(key))}
+        block = {v for key in NOT_FLAG_KEYS for v in as_list(requires.get(key))}
+        if not need and not block:
+            return ""  # an unconditional choice: always a way out
+        required.append(need)
+        forbidden.append(block)
+        flags |= need | block
+
+    ordered = sorted(flags)
+    for mask in range(1 << len(ordered)):
+        state = {name for i, name in enumerate(ordered) if mask & (1 << i)}
+        if any(need <= state and not (block & state)
+               for need, block in zip(required, forbidden)):
+            continue
+        on = sorted(state)
+        off = [f for f in ordered if f not in state]
+        return f"set={on or 'nothing'} unset={off or 'nothing'}"
+    return ""
+
+
 def validate(path: Path) -> Report:
     report = Report(str(path))
     try:
@@ -250,13 +293,21 @@ def validate(path: Path) -> Report:
             report.error(f"{node_id}: type '{node_type}' has no choices and no target - dead end")
 
         # Every choice being conditional means a player meeting none of them is
-        # stranded with no way out. A choice with locked_text still renders, but
-        # it renders disabled, so it is not an exit either.
+        # stranded. When the conditions are all flag-based we can settle it
+        # properly: enumerate the flag combinations and find any that no choice
+        # covers. Otherwise fall back to warning that there is no fallback.
         if choices and not any(f in node for f in TARGET_FIELDS):
             if all(c.get("requires") for c in choices):
-                report.error(
-                    f"{node_id}: every choice is conditional - a player meeting none of them is stranded"
-                )
+                uncovered = flag_gap(choices)
+                if uncovered is None:
+                    report.error(
+                        f"{node_id}: every choice is conditional and they are not all flag-based - "
+                        "a player meeting none of them is stranded"
+                    )
+                elif uncovered:
+                    report.error(
+                        f"{node_id}: no choice is available when {uncovered} - the player is stranded"
+                    )
 
     # --- catalog-level use effects ---------------------------------------
     for entry in (story.get("inventory") or []) + (story.get("items") or []):
