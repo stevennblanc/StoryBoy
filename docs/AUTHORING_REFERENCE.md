@@ -120,7 +120,7 @@ Top-level `map[]` entries are `{ id, title, image }`. Nodes reveal them with `re
 python scripts/validate_gamebook.py web/store/the-sunken-vault.gbk
 ```
 
-Accepts a `.gbk` or a bare `story.json`, and several at once. **Errors** mean the book is broken — a target that names no node, a shop selling an item nothing defines, a `requires` naming an unknown item/flag/character/stat, a stat change to a stat that was never declared, an image missing from the package, a non-`text` node with no way out, or a node where *every* choice is conditional (a player meeting none of them is stranded). **Warnings** are probably mistakes: unreachable nodes, and flags that are set but never read. Exit code is 1 if there were errors, so it can gate a release.
+Accepts a `.gbk` or a bare `story.json`, and several at once. **Errors** mean the book is broken — a target that names no node, a shop selling an item nothing defines, a `requires` naming an unknown item/flag/character/stat, a stat change to a stat that was never declared, an image missing from the package, a non-`text` node with no way out, a node where *every* choice is conditional (the flag combinations are enumerated, so it only complains when a state genuinely has no exit), or **prose that promises a different amount of currency than the node grants** - the easiest mistake to make when rebalancing an economy, and invisible until a player counts. **Warnings** are probably mistakes: unreachable nodes, and flags that are set but never read. Exit code is 1 if there were errors, so it can gate a release.
 
 Run it before packaging. It catches the class of mistake that is invisible by eye once a book passes a few dozen nodes.
 

@@ -17,6 +17,7 @@ Exit code is 1 if any error was found, otherwise 0.
 from __future__ import annotations
 
 import json
+import re
 import sys
 import zipfile
 from pathlib import Path
@@ -134,6 +135,30 @@ def flag_gap(choices: list[dict]):
         off = [f for f in ordered if f not in state]
         return f"set={on or 'nothing'} unset={off or 'nothing'}"
     return ""
+
+
+def gold_in(text: str, currency_words: tuple) -> list[int]:
+    """Figures the prose promises, e.g. "pocket 20 gold"."""
+    if not text:
+        return []
+    pattern = r"(\d+)\s+(?:%s)\b" % "|".join(currency_words)
+    return [int(m) for m in re.findall(pattern, text, re.I)]
+
+
+def stat_delta(node: dict, stat_id: str) -> int:
+    total = 0
+    for key in ("stat_changes", "adjust_stats", "gain_stats"):
+        block = node.get(key)
+        if isinstance(block, dict) and isinstance(block.get(stat_id), int):
+            total += block[stat_id]
+    absolute = node.get("set_stats")
+    if isinstance(absolute, dict) and isinstance(absolute.get(stat_id), int):
+        total = absolute[stat_id]
+    return total
+
+
+def title_words(title: str) -> set:
+    return {w for w in re.findall(r"[a-z]+", (title or "").lower()) if len(w) > 3}
 
 
 def validate(path: Path) -> Report:
@@ -308,6 +333,57 @@ def validate(path: Path) -> Report:
                     report.error(
                         f"{node_id}: no choice is available when {uncovered} - the player is stranded"
                     )
+
+    # --- prose against rewards -------------------------------------------
+    # A node that says "20 gold" and hands over none is the single easiest
+    # mistake to make when rebalancing an economy, and it is invisible until a
+    # player counts. Check what the prose promises against what is granted.
+    # Currency means what shops charge in, plus a stat literally called gold -
+    # not every stat that happens to have a label.
+    currency_ids = {n["currency_stat"] for n in nodes
+                    if n.get("type") == "shop" and n.get("currency_stat")}
+    currency_ids |= {s["id"] for s in story.get("stats") or [] if s.get("id") == "gold"}
+    currency = {"gold", "coin", "coins"}
+    for stat in story.get("stats") or []:
+        if stat.get("id") in currency_ids and stat.get("label"):
+            currency.add(stat["label"].lower())
+    currency_words = tuple(sorted(currency))
+    currency_ids = sorted(currency_ids)
+
+    catalog_titles = {}
+    for entry in (story.get("inventory") or []) + (story.get("items") or []) \
+            + (story.get("equipment") or []) + (story.get("gear") or []):
+        if isinstance(entry, dict) and entry.get("id"):
+            catalog_titles[entry["id"]] = entry.get("title", "")
+
+    for node_id, node in by_id.items():
+        text = node.get("text") or ""
+        promised = gold_in(text, currency_words)
+        if promised:
+            actual = max((abs(stat_delta(node, sid)) for sid in currency_ids), default=0)
+            if not any(p == actual for p in promised):
+                report.error(
+                    f"{node_id}: prose promises {promised[0]} but the node grants {actual}"
+                )
+        # A choice naming a price should match what its target actually charges.
+        for choice in collect_choices(node):
+            asked = gold_in(choice.get("text") or "", currency_words)
+            target = by_id.get(choice.get("target"))
+            if asked and target:
+                charged = max((abs(stat_delta(target, sid)) for sid in currency_ids), default=0)
+                if not any(a == charged for a in asked):
+                    report.error(
+                        f"{node_id}: a choice asks {asked[0]} but '{choice.get('target')}' "
+                        f"changes it by {charged}"
+                    )
+        # Something handed over without a word of prose is a silent reward.
+        for key in ("items", "inventory", "equipment", "gear"):
+            for entry in (node.get(key) or []):
+                item_id = entry if isinstance(entry, str) else (entry or {}).get("id")
+                title = catalog_titles.get(item_id) if isinstance(entry, str) else (entry or {}).get("title")
+                words = title_words(title or "")
+                if words and not (words & title_words(text)):
+                    report.warn(f"{node_id}: grants '{title}' but the prose never mentions it")
 
     # --- catalog-level use effects ---------------------------------------
     for entry in (story.get("inventory") or []) + (story.get("items") or []):
