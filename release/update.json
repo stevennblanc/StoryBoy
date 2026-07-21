@@ -1,6 +1,6 @@
 {
-  "versionCode": 29,
-  "versionName": "0.25.0",
+  "versionCode": 30,
+  "versionName": "0.25.1",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "New: author-defined ability scores (a score maps to a modifier) that feed combat and skill checks, and character selection - a book can offer pre-made protagonists with their own stats and gear. Try the new demo, The Ashen Crossroads."
+  "releaseNotes": "Fix: updated gamebooks kept showing their old artwork in the library. Cover and scene images now refresh when a book is updated."
 }

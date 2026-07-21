@@ -79,15 +79,22 @@ class StoreRepository {
     }
     final dir = await _booksDir();
     await File('${dir.path}/${book.id}.gbk').writeAsBytes(response.bodyBytes);
+    // Drop previously extracted art so an updated book cannot serve stale
+    // images that reuse the same filenames.
+    await _clearAssetCache(book.id);
+  }
+
+  Future<void> _clearAssetCache(String bookId) async {
+    final cacheDir = await getApplicationCacheDirectory();
+    final assets = Directory('${cacheDir.path}/gbk_assets/$bookId');
+    if (await assets.exists()) await assets.delete(recursive: true);
   }
 
   Future<void> deleteBook(String bookId) async {
     final dir = await _booksDir();
     final file = File('${dir.path}/$bookId.gbk');
     if (await file.exists()) await file.delete();
-    final cacheDir = await getApplicationCacheDirectory();
-    final assets = Directory('${cacheDir.path}/gbk_assets/$bookId');
-    if (await assets.exists()) await assets.delete(recursive: true);
+    await _clearAssetCache(bookId);
     await _progress.reset(bookId);
   }
 

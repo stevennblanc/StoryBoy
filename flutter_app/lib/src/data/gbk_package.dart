@@ -35,9 +35,16 @@ class GbkPackage {
     if (entry == null) return null;
     final cacheDir = await getApplicationCacheDirectory();
     final target = File('${cacheDir.path}/gbk_assets/$bookId/${normalized.split('/').last}');
-    if (!await target.exists()) {
+    final content = entry.content as List<int>;
+    // Re-extract when the packaged asset differs from the cached copy: an
+    // updated book often reuses filenames (poster.jpg, map tiles) with new art.
+    var shouldWrite = true;
+    if (await target.exists()) {
+      shouldWrite = await target.length() != content.length;
+    }
+    if (shouldWrite) {
       await target.create(recursive: true);
-      await target.writeAsBytes(entry.content as List<int>);
+      await target.writeAsBytes(content);
     }
     return target;
   }
