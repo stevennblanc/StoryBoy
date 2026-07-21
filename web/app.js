@@ -1135,6 +1135,8 @@ function meetsRequirement(req) {
   if (asList(req.not_flag || req.not_flags || req.without_flag).some((f) => state.flags.includes(f))) return false;
   const chars = asList(req.character || req.characters || req.class);
   if (chars.length && !chars.includes(state.chosenCharacter)) return false;
+  if (asList(req.not_character || req.not_characters || req.not_class)
+        .includes(state.chosenCharacter)) return false;
   const statBlock = req.stat || req.stats;
   if (statBlock && typeof statBlock === "object") {
     for (const [id, cond] of Object.entries(statBlock)) {

@@ -28,7 +28,7 @@ Any node may also carry: `image`/`images[]`, `stat_changes{}` / `set_stats{}`, `
 
 ### Conditional choices
 
-A choice or map location may carry `requires` (hidden until met) plus optional `locked_text` (shown disabled instead). Predicates, all of which must pass: `item` / `not_item`, `equipment`, `equipped`, `evidence`, `character` (chosen class), `flag` / `not_flag`, and `stat` numeric comparisons (`min`/`at_least`, `max`/`at_most`, `gt`, `lt`, `equals`, against the effective value). Story flags are free-form — set them with `set_flags` on any node, no declaration required; they're the standard way to stop repeatable loops.
+A choice or map location may carry `requires` (hidden until met) plus optional `locked_text` (shown disabled instead). Predicates, all of which must pass: `item` / `not_item`, `equipment`, `equipped`, `evidence`, `character` / `not_character` (chosen class), `flag` / `not_flag`, and `stat` numeric comparisons (`min`/`at_least`, `max`/`at_most`, `gt`, `lt`, `equals`, against the effective value). Story flags are free-form — set them with `set_flags` on any node, no declaration required; they're the standard way to stop repeatable loops.
 
 ## Opening a book: prologue and instructions
 

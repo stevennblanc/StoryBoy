@@ -396,6 +396,7 @@ class ChoiceRequirement {
     this.equipped = const [],
     this.evidence = const [],
     this.characters = const [],
+    this.notCharacters = const [],
     this.flags = const [],
     this.notFlags = const [],
     this.stats = const {},
@@ -407,6 +408,7 @@ class ChoiceRequirement {
   final List<String> equipped;
   final List<String> evidence;
   final List<String> characters;
+  final List<String> notCharacters;
   final List<String> flags;
   final List<String> notFlags;
   final Map<String, StatCondition> stats;
@@ -418,6 +420,7 @@ class ChoiceRequirement {
       equipped.isEmpty &&
       evidence.isEmpty &&
       characters.isEmpty &&
+      notCharacters.isEmpty &&
       flags.isEmpty &&
       notFlags.isEmpty &&
       stats.isEmpty;

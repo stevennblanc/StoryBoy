@@ -430,6 +430,24 @@ void main() {
     expect(story.node('hub').mapLocations.single.requires!.notFlags, ['wing_sealed']);
   });
 
+  test('not_character excludes the chosen class', () {
+    final story = parseStoryGamebook({
+      'metadata': {'title': 'T', 'folder': 't', 'start_node': 'start'},
+      'nodes': [
+        {
+          'id': 'start',
+          'type': 'text',
+          'text': 's',
+          'choices': [
+            {'text': 'The hard way', 'target': 'end', 'requires': {'not_character': 'witch'}},
+          ],
+        },
+        {'id': 'end', 'type': 'text', 'text': 'e'},
+      ],
+    });
+    expect(story.node('start').choices.single.requires!.notCharacters, ['witch']);
+  });
+
   test('lore nodes keep their entries as titled sections', () {
     final story = parseStoryGamebook({
       'metadata': {'title': 'T', 'folder': 't', 'start_node': 'start'},

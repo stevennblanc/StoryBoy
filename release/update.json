@@ -1,6 +1,6 @@
 {
-  "versionCode": 32,
-  "versionName": "0.27.0",
+  "versionCode": 33,
+  "versionName": "0.28.0",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "Books can now open with a prologue and a How to play section, the way a printed gamebook front-loads its rules. The Sunken Vault and The Ashen Crossroads both start this way. Lore pages render their sections with headings instead of one block of text."
+  "releaseNotes": "The Sunken Vault now begins with a choice of delver - Kell the sellsword, Sorrel the tomb-robber, or Vane the tide-touched - each with their own portrait, stats, starting gear, and ways through the vault only they can take. Choices can now also exclude a class with not_character."
 }

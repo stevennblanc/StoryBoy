@@ -257,6 +257,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
         !requirement.characters.contains(_chosenCharacterId)) {
       return false;
     }
+    if (requirement.notCharacters.contains(_chosenCharacterId)) return false;
     for (final entry in requirement.stats.entries) {
       if (!entry.value.test(_effectiveStat(entry.key))) return false;
     }

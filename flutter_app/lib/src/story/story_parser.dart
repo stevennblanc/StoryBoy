@@ -560,6 +560,8 @@ ChoiceRequirement? _parseRequirement(dynamic raw) {
     equipped: _stringList(json['equipped']),
     evidence: _stringList(json['evidence']),
     characters: _stringList(json['character'] ?? json['characters'] ?? json['class']),
+    notCharacters:
+        _stringList(json['not_character'] ?? json['not_characters'] ?? json['not_class']),
     flags: _stringList(json['flag'] ?? json['flags'] ?? json['has_flag']),
     notFlags: _stringList(json['not_flag'] ?? json['not_flags'] ?? json['without_flag']),
     stats: stats,
