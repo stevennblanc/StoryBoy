@@ -11,3 +11,6 @@ app/build/
 gamebooks/
 .vercel-tools/
 supabase/.temp/
+
+# Raw artwork drops (source PNGs); packaged art lives in web/store
+art_inbox/
