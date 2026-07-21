@@ -50,7 +50,14 @@ Measured against the 95-node 0.6.0 book. These are cheap now and expensive to re
 
 1. **Consumable items (healing).** — SHIPPED (0.29.0). An inventory item with a `use` block is spendable from the bag, with its own verb and charge count, clamped and persisted. The Vault gained a Brine Tonic and a Keeper's Draught, sold at both traders and hidden in the ruin.
 2. **A book validator.** — SHIPPED. `scripts/validate_gamebook.py`, documented in `AUTHORING_REFERENCE.md`. It found a live bug on its first run: the Vault's merchant sold a `torch_bundle` that the book never defined.
-3. **Decide the economy before writing it.** Today: 302 gold earnable during play against 92 gold of purchasable goods — a 3.3x oversupply, which is why gold stops being a decision partway through. Set the target ratio and the sinks (selling, consumables, repairs, tolls) *before* authoring rewards, or every reward gets renumbered later.
+3. **Decide the economy before writing it.** — SETTLED (Vault 0.8.0). The shape, to author every future reward against:
+
+   - **One shop, at the mouth, before you descend.** A trader camped at a ruin's entrance is believable; a shop three rooms into a drowned crypt is not. The mid-dungeon merchant is gone.
+   - **All equipment is discoverable.** The trader sells a starting kit and supplies; every other weapon, shield, and suit of armour is found in the world.
+   - **Gold rewards exploration, not killing.** Caches, hoards, and hidden niches pay. Corpses give gear and survival, not coin.
+   - **Inside, gold buys passage — tolls and bribes.** Paying is never strictly better than fighting: it buys safety and costs you the loot the fight would have dropped.
+   - **Never gate progress on gold alone.** Every toll has a free alternative — a fight, or a skill check — so a broke player is never stuck. Unaffordable tolls show locked with an in-fiction line, so the player sees what their purse cost them.
+   - Numbers as of 0.8.0: 100 gold findable across the whole vault (was 302), 43 gold of goods at the mouth, 60 gold of tolls inside.
 
 ## Art debt
 
