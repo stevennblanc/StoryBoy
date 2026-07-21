@@ -29,6 +29,7 @@ const state = {
   equipment: [],
   equippedBySlot: {},
   map: [],
+  flags: [],
   stats: {},
   checkResult: null,
   enemyHp: null,
@@ -601,6 +602,7 @@ async function openBook(book) {
     state.equipment = progress?.equipment || [];
     state.equippedBySlot = progress?.equippedBySlot || {};
     state.map = progress?.map || [];
+    state.flags = progress?.flags || [];
     state.chosenCharacter = progress?.chosenCharacter || null;
     const savedStats = progress?.stats || {};
     state.stats = {};
@@ -863,6 +865,8 @@ function renderNodeActions(node) {
     return renderChoices(node.locations.map((location) => ({
       text: `${location.title}${location.description ? `: ${location.description}` : ""}`,
       target: location.target,
+      requires: location.requires || location.condition,
+      locked_text: location.locked_text,
     })));
   }
 
@@ -893,13 +897,19 @@ function renderNodeActions(node) {
 }
 
 function renderChoices(choices) {
+  const visible = choices.filter((c) => meetsRequirement(c.requires || c.condition || c.if) || c.locked_text);
   return `
     <div class="choice-list">
-      ${choices.map((choice) => `
+      ${visible.map((choice) => {
+        const ok = meetsRequirement(choice.requires || choice.condition || choice.if);
+        if (!ok) {
+          return `<button class="choice" type="button" disabled>${escapeHtml(choice.locked_text)}</button>`;
+        }
+        return `
         <button class="choice" type="button" data-target="${escapeAttribute(choice.target || "")}">
           ${escapeHtml(choice.text || choice.title || "Continue")}
-        </button>
-      `).join("")}
+        </button>`;
+      }).join("")}
     </div>
   `;
 }
@@ -1090,7 +1100,58 @@ function applyNodeGains(node, gamebook) {
   collectItems(node.evidence || node.gain_evidence || node.gains_evidence, gamebook.evidence, state.evidence);
   collectItems(node.equipment || node.gain_equipment || node.gains_equipment || node.gear, gamebook.equipment, state.equipment);
   revealMap(node);
+  applyFlags(node);
   applyStatChanges(node, gamebook);
+}
+
+function applyFlags(node) {
+  const set = node.set_flags || node.set_flag || node.flags;
+  for (const f of (Array.isArray(set) ? set : (typeof set === "string" ? [set] : []))) {
+    if (!state.flags.includes(f)) state.flags.push(f);
+  }
+  const clear = node.clear_flags || node.clear_flag;
+  for (const f of (Array.isArray(clear) ? clear : (typeof clear === "string" ? [clear] : []))) {
+    state.flags = state.flags.filter((x) => x !== f);
+  }
+}
+
+function asList(raw) {
+  if (typeof raw === "string" && raw.trim()) return [raw.trim()];
+  if (Array.isArray(raw)) return raw.filter((v) => typeof v === "string" && v.trim());
+  return [];
+}
+
+// True when every predicate on a choice's `requires` block currently holds.
+function meetsRequirement(req) {
+  if (!req || typeof req !== "object") return true;
+  const hasIn = (list, arr) => asList(list).every((id) => arr.some((x) => (x.id || x) === id));
+  if (!hasIn(req.item || req.items || req.has_item, state.inventory)) return false;
+  if (asList(req.not_item || req.without_item || req.missing_item)
+        .some((id) => state.inventory.some((x) => x.id === id))) return false;
+  if (!hasIn(req.equipment || req.gear, state.equipment)) return false;
+  if (!asList(req.equipped).every((id) => Object.values(state.equippedBySlot).includes(id))) return false;
+  if (!hasIn(req.evidence, state.evidence)) return false;
+  if (!asList(req.flag || req.flags || req.has_flag).every((f) => state.flags.includes(f))) return false;
+  if (asList(req.not_flag || req.not_flags || req.without_flag).some((f) => state.flags.includes(f))) return false;
+  const chars = asList(req.character || req.characters || req.class);
+  if (chars.length && !chars.includes(state.chosenCharacter)) return false;
+  const statBlock = req.stat || req.stats;
+  if (statBlock && typeof statBlock === "object") {
+    for (const [id, cond] of Object.entries(statBlock)) {
+      const value = effectiveStat(id);
+      if (typeof cond === "number") { if (value < cond) return false; continue; }
+      if (!cond || typeof cond !== "object") continue;
+      const gt = cond.gt ?? cond.greater_than ?? cond.above;
+      const lt = cond.lt ?? cond.less_than ?? cond.below;
+      const min = cond.min ?? cond.at_least ?? cond.gte ?? (typeof gt === "number" ? gt + 1 : undefined);
+      const max = cond.max ?? cond.at_most ?? cond.lte ?? (typeof lt === "number" ? lt - 1 : undefined);
+      const eq = cond.equals ?? cond.eq ?? cond.is;
+      if (typeof min === "number" && value < min) return false;
+      if (typeof max === "number" && value > max) return false;
+      if (typeof eq === "number" && value !== eq) return false;
+    }
+  }
+  return true;
 }
 
 function revealMap(node) {
@@ -1571,6 +1632,7 @@ function saveProgress() {
     equipment: state.equipment,
     equippedBySlot: state.equippedBySlot,
     map: state.map,
+    flags: state.flags,
     stats: state.stats,
     chosenCharacter: state.chosenCharacter,
   }));

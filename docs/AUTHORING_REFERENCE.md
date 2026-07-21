@@ -24,7 +24,11 @@ The author defines the character and world through the stats, labels, and prose.
 | `combat` | Round-based fight. | `enemy{}`, `player{}`, `armor_stat`, `health_stat`, `win_target`, `lose_target`, `flee_target`, `talk_target` |
 | `battle` | Lightweight opposed one-roll (older, simpler than `combat`). | `player_dice`, `opponent_dice`, `win_target`, `lose_target`, `item_modifiers[]` |
 
-Any node may also carry: `image`/`images[]`, `stat_changes{}` / `set_stats{}`, `reveal_map`, and grant `items`/`evidence`/`equipment`.
+Any node may also carry: `image`/`images[]`, `stat_changes{}` / `set_stats{}`, `set_flags[]` / `clear_flags[]`, `reveal_map`, and grant `items`/`evidence`/`equipment`.
+
+### Conditional choices
+
+A choice or map location may carry `requires` (hidden until met) plus optional `locked_text` (shown disabled instead). Predicates, all of which must pass: `item` / `not_item`, `equipment`, `equipped`, `evidence`, `character` (chosen class), `flag` / `not_flag`, and `stat` numeric comparisons (`min`/`at_least`, `max`/`at_most`, `gt`, `lt`, `equals`, against the effective value). Story flags are free-form — set them with `set_flags` on any node, no declaration required; they're the standard way to stop repeatable loops.
 
 ## Systems and their nameable variables
 

@@ -28,6 +28,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
   Set<String> _evidenceIds = {};
   Set<String> _equipmentIds = {};
   Set<String> _mapIds = {};
+  Set<String> _flags = {};
+  String? _chosenCharacterId;
   final Map<String, int> _stats = {};
   final Map<String, String> _equippedBySlot = {};
   BattleResult? _battleResult;
@@ -73,6 +75,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
         _evidenceIds = progress.collectedIds(story.id, 'evidence');
         _equipmentIds = progress.collectedIds(story.id, 'equipment');
         _mapIds = progress.collectedIds(story.id, 'map');
+        _flags = progress.flags(story.id);
+        _chosenCharacterId = progress.chosenCharacter(story.id);
         _stats.clear();
         for (final stat in story.stats) {
           _stats[stat.id] = savedStats[stat.id] ?? stat.start;
@@ -103,8 +107,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
     final evidenceIds = {..._evidenceIds, ...node.evidenceGained.map((item) => item.id)};
     final equipmentIds = {..._equipmentIds, ...node.equipmentGained.map((item) => item.id)};
     final mapIds = {..._mapIds, ...node.mapRevealIds};
+    final flags = {..._flags, ...node.setFlags}..removeAll(node.clearFlags);
     _applyStatChanges(story, node.statChanges);
     final progress = widget.model.progress;
+    progress.saveFlags(story.id, flags);
     progress.saveCurrentNode(story.id, nodeId);
     progress.saveCollectedIds(story.id, 'inventory', inventoryIds);
     progress.saveCollectedIds(story.id, 'evidence', evidenceIds);
@@ -118,6 +124,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
       _evidenceIds = evidenceIds;
       _equipmentIds = equipmentIds;
       _mapIds = mapIds;
+      _flags = flags;
       _battleResult = null;
       _checkOutcome = null;
       _enemyHp = node.combat?.enemyHp;
@@ -185,6 +192,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
     _evidenceIds = {};
     _equipmentIds = {};
     _mapIds = {};
+    _flags = {};
+    _chosenCharacterId = null;
     _equippedBySlot.clear();
     _stats.clear();
     for (final stat in story.stats) {
@@ -211,12 +220,47 @@ class _ReaderScreenState extends State<ReaderScreen> {
       ..clear()
       ..addAll(character.equippedBySlot);
     final progress = widget.model.progress;
+    _chosenCharacterId = character.id;
     progress.saveChosenCharacter(story.id, character.id);
     progress.saveStats(story.id, _stats);
     progress.saveCollectedIds(story.id, 'equipment', _equipmentIds);
     progress.saveEquipped(story.id, _equippedBySlot);
     setState(() => _selectingCharacter = false);
     _enterNode(character.startNodeId ?? story.startNodeId);
+  }
+
+  /// True when every predicate on [requirement] currently holds.
+  bool _meets(ChoiceRequirement? requirement) {
+    if (requirement == null || requirement.isEmpty) return true;
+    for (final id in requirement.items) {
+      if (!_inventoryIds.contains(id)) return false;
+    }
+    for (final id in requirement.notItems) {
+      if (_inventoryIds.contains(id)) return false;
+    }
+    for (final id in requirement.equipment) {
+      if (!_equipmentIds.contains(id)) return false;
+    }
+    for (final id in requirement.equipped) {
+      if (!_equippedBySlot.containsValue(id)) return false;
+    }
+    for (final id in requirement.evidence) {
+      if (!_evidenceIds.contains(id)) return false;
+    }
+    for (final flag in requirement.flags) {
+      if (!_flags.contains(flag)) return false;
+    }
+    for (final flag in requirement.notFlags) {
+      if (_flags.contains(flag)) return false;
+    }
+    if (requirement.characters.isNotEmpty &&
+        !requirement.characters.contains(_chosenCharacterId)) {
+      return false;
+    }
+    for (final entry in requirement.stats.entries) {
+      if (!entry.value.test(_effectiveStat(entry.key))) return false;
+    }
+    return true;
   }
 
   /// The bonus a stat contributes: an ability score's tiered modifier, or a
@@ -790,6 +834,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     if (node.type == 'map') {
       return [
         for (final location in node.mapLocations)
+          if (_meets(location.requires))
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: FilledButton(
@@ -832,13 +877,22 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
     return [
       for (final choice in node.choices)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: FilledButton(
-            onPressed: () => _enterNode(choice.targetId),
-            child: Text(choice.text, textAlign: TextAlign.center),
+        if (_meets(choice.requires))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: FilledButton(
+              onPressed: () => _enterNode(choice.targetId),
+              child: Text(choice.text, textAlign: TextAlign.center),
+            ),
+          )
+        else if (choice.lockedText != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: FilledButton(
+              onPressed: null,
+              child: Text(choice.lockedText!, textAlign: TextAlign.center),
+            ),
           ),
-        ),
     ];
   }
 

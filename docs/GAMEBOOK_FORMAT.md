@@ -377,6 +377,51 @@ A book can define a **map** that fills in as the player explores. Fragments live
 
 This is separate from the `map` **node type** (a location/travel hub with `locations`). One is a picture that assembles as you explore; the other is a branching choice screen. A book can use either, both, or neither.
 
+## Conditional Choices and Story Flags
+
+Any choice (or map location) can carry a `requires` block. If the conditions aren't met the choice is **hidden**; add `locked_text` to show it disabled with a hint instead.
+
+```json
+{
+  "id": "cell_door", "type": "text", "text": "The barred door will not budge.",
+  "choices": [
+    { "text": "Unlock the door", "target": "beyond",
+      "requires": { "item": "iron_key" } },
+
+    { "text": "Bribe the guard", "target": "bribed",
+      "requires": { "stat": { "gold": { "gt": 26 } } },
+      "locked_text": "Bribe the guard (needs 27 gold)" },
+
+    { "text": "Speak the binding word", "target": "banish",
+      "requires": { "character": "witch" } },
+
+    { "text": "Loot the corpse", "target": "loot",
+      "requires": { "not_flag": "worm_looted" } }
+  ]
+}
+```
+
+Supported predicates (all listed must pass):
+
+| Key | Meaning |
+| --- | --- |
+| `item` / `not_item` | player holds (or doesn't hold) an inventory item |
+| `equipment` | owns a piece of equipment |
+| `equipped` | has it equipped right now |
+| `evidence` | holds an evidence entry |
+| `character` / `class` | the chosen character's id |
+| `flag` / `not_flag` | a story flag is raised / not raised |
+| `stat` | numeric comparison per stat: `min`/`at_least`, `max`/`at_most`, `gt`, `lt`, `equals` |
+
+**Story flags** are free-form — no declaration needed. Any node raises or clears them on entry:
+
+```json
+{ "id": "worm_dead", "type": "text", "text": "The worm sags.",
+  "set_flags": ["worm_killed"], "clear_flags": ["worm_stalking"] }
+```
+
+Flags are the tool for stopping repeatable loops: gate the entrance to a fight with `"not_flag": "worm_killed"` and the monster can't be farmed. They also record what the player has seen or done, so later scenes can react to it. Stat comparisons use the **effective** value (base plus equipped bonuses).
+
 ## Ability Scores and Character Choice
 
 A stat can be an **ability score**: a raw value (typically 1–18) that maps to a small modifier. Combat and checks add the *modifier*, not the raw value, so a strong warrior hits harder and a clever witch reads wards better.

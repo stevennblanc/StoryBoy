@@ -64,6 +64,15 @@ class ProgressStore {
     );
   }
 
+  /// Free-form story flags raised during this playthrough.
+  Set<String> flags(String bookId) {
+    return (_prefs.getStringList('progress.$bookId.flags') ?? const []).toSet();
+  }
+
+  Future<void> saveFlags(String bookId, Set<String> flags) async {
+    await _prefs.setStringList('progress.$bookId.flags', flags.toList());
+  }
+
   String? chosenCharacter(String bookId) => _prefs.getString('progress.$bookId.character');
 
   Future<void> saveChosenCharacter(String bookId, String characterId) async {
@@ -80,6 +89,7 @@ class ProgressStore {
     await _prefs.remove('progress.$bookId.equipped');
     await _prefs.remove('progress.$bookId.map');
     await _prefs.remove('progress.$bookId.stats');
+    await _prefs.remove('progress.$bookId.flags');
     await _prefs.remove('progress.$bookId.character');
   }
 

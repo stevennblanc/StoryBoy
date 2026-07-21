@@ -236,6 +236,8 @@ StoryNode _parseNode(Map<String, dynamic> json, {String? fallbackId}) {
         equipmentGained: _parseGained(json, _equipmentKeys),
         mapRevealIds: _parseMapReveals(json),
         statChanges: _parseStatChanges(json),
+        setFlags: _stringList(json['set_flags'] ?? json['set_flag'] ?? json['flags']),
+        clearFlags: _stringList(json['clear_flags'] ?? json['clear_flag']),
       );
   }
 }
@@ -251,6 +253,8 @@ StoryNode _parseCheckNode(Map<String, dynamic> json, String id) {
     equipmentGained: _parseGained(json, _equipmentKeys),
     mapRevealIds: _parseMapReveals(json),
     statChanges: _parseStatChanges(json),
+    setFlags: _stringList(json['set_flags'] ?? json['set_flag'] ?? json['flags']),
+    clearFlags: _stringList(json['clear_flags'] ?? json['clear_flag']),
     check: CheckConfig(
       dice: _firstString(json, ['dice', 'roll']) ?? '1d20',
       modifier: _firstInt(json, ['modifier', 'bonus']) ?? 0,
@@ -289,6 +293,8 @@ StoryNode _parseShopNode(Map<String, dynamic> json, String id) {
     equipmentGained: _parseGained(json, _equipmentKeys),
     mapRevealIds: _parseMapReveals(json),
     statChanges: _parseStatChanges(json),
+    setFlags: _stringList(json['set_flags'] ?? json['set_flag'] ?? json['flags']),
+    clearFlags: _stringList(json['clear_flags'] ?? json['clear_flag']),
     shop: ShopConfig(
       currencyStatId: _firstString(json, ['currency_stat', 'currency', 'cost_stat']) ?? 'gold',
       items: items,
@@ -311,6 +317,8 @@ StoryNode _parseCombatNode(Map<String, dynamic> json, String id) {
     equipmentGained: _parseGained(json, _equipmentKeys),
     mapRevealIds: _parseMapReveals(json),
     statChanges: _parseStatChanges(json),
+    setFlags: _stringList(json['set_flags'] ?? json['set_flag'] ?? json['flags']),
+    clearFlags: _stringList(json['clear_flags'] ?? json['clear_flag']),
     combat: CombatConfig(
       enemyLabel: _firstString(enemy, ['label', 'name', 'title']) ??
           _firstString(json, ['enemy_label', 'enemy_name']) ??
@@ -373,6 +381,8 @@ StoryNode _parseLoreNode(Map<String, dynamic> json, String id) {
     equipmentGained: _parseGained(json, _equipmentKeys),
     mapRevealIds: _parseMapReveals(json),
     statChanges: _parseStatChanges(json),
+    setFlags: _stringList(json['set_flags'] ?? json['set_flag'] ?? json['flags']),
+    clearFlags: _stringList(json['clear_flags'] ?? json['clear_flag']),
   );
 }
 
@@ -390,6 +400,8 @@ StoryNode _parsePuzzleNode(Map<String, dynamic> json, String id) {
     equipmentGained: _parseGained(json, _equipmentKeys),
     mapRevealIds: _parseMapReveals(json),
     statChanges: _parseStatChanges(json),
+    setFlags: _stringList(json['set_flags'] ?? json['set_flag'] ?? json['flags']),
+    clearFlags: _stringList(json['clear_flags'] ?? json['clear_flag']),
     acceptedAnswers: answers,
     correctTargetId: _firstString(json, ['correct_target', 'correctTarget']),
     incorrectTargetId: _firstString(json, [
@@ -418,6 +430,8 @@ StoryNode _parseCollectionNode(Map<String, dynamic> json, String id, String type
     equipmentGained: _parseGained(json, _equipmentKeys),
     mapRevealIds: _parseMapReveals(json),
     statChanges: _parseStatChanges(json),
+    setFlags: _stringList(json['set_flags'] ?? json['set_flag'] ?? json['flags']),
+    clearFlags: _stringList(json['clear_flags'] ?? json['clear_flag']),
   );
 }
 
@@ -428,6 +442,8 @@ StoryNode _parseMapNode(Map<String, dynamic> json, String id) {
       title: (location['title'] as String?) ?? '',
       description: (location['description'] as String?) ?? '',
       targetId: (location['target'] as String?) ?? '',
+      requires: _parseRequirement(location['requires'] ?? location['condition']),
+      lockedText: _firstString(location, ['locked_text', 'lockedText']),
     );
   }).toList();
 
@@ -442,6 +458,8 @@ StoryNode _parseMapNode(Map<String, dynamic> json, String id) {
     equipmentGained: _parseGained(json, _equipmentKeys),
     mapRevealIds: _parseMapReveals(json),
     statChanges: _parseStatChanges(json),
+    setFlags: _stringList(json['set_flags'] ?? json['set_flag'] ?? json['flags']),
+    clearFlags: _stringList(json['clear_flags'] ?? json['clear_flag']),
     mapLocations: locations,
   );
 }
@@ -469,6 +487,8 @@ StoryNode _parseBattleNode(Map<String, dynamic> json, String id) {
     equipmentGained: _parseGained(json, _equipmentKeys),
     mapRevealIds: _parseMapReveals(json),
     statChanges: _parseStatChanges(json),
+    setFlags: _stringList(json['set_flags'] ?? json['set_flag'] ?? json['flags']),
+    clearFlags: _stringList(json['clear_flags'] ?? json['clear_flag']),
     battle: BattleConfig(
       playerDice: _firstString(battleJson, ['player_dice', 'playerDice']) ?? '1d6',
       opponentDice:
@@ -491,8 +511,54 @@ List<StoryChoice> _parseChoices(dynamic raw) {
     return StoryChoice(
       text: (choice['text'] as String?) ?? (choice['title'] as String?) ?? 'Continue',
       targetId: (choice['target'] as String?) ?? '',
+      requires: _parseRequirement(choice['requires'] ?? choice['condition'] ?? choice['if']),
+      lockedText: _firstString(choice, ['locked_text', 'lockedText', 'locked']),
     );
   }).toList();
+}
+
+List<String> _stringList(dynamic raw) {
+  if (raw is String && raw.trim().isNotEmpty) return [raw.trim()];
+  if (raw is List) {
+    return raw.whereType<String>().map((v) => v.trim()).where((v) => v.isNotEmpty).toList();
+  }
+  return const [];
+}
+
+ChoiceRequirement? _parseRequirement(dynamic raw) {
+  if (raw is! Map) return null;
+  final json = raw.cast<String, dynamic>();
+
+  final stats = <String, StatCondition>{};
+  void addStat(String id, dynamic cond) {
+    if (cond is num) {
+      stats[id] = StatCondition(min: cond.toInt());
+    } else if (cond is Map) {
+      final c = cond.cast<String, dynamic>();
+      final gt = _firstInt(c, ['gt', 'greater_than', 'above']);
+      final lt = _firstInt(c, ['lt', 'less_than', 'below']);
+      stats[id] = StatCondition(
+        min: _firstInt(c, ['min', 'at_least', 'gte']) ?? (gt != null ? gt + 1 : null),
+        max: _firstInt(c, ['max', 'at_most', 'lte']) ?? (lt != null ? lt - 1 : null),
+        equals: _firstInt(c, ['equals', 'eq', 'is']),
+      );
+    }
+  }
+
+  final statBlock = (json['stat'] ?? json['stats']) as Map?;
+  statBlock?.cast<String, dynamic>().forEach(addStat);
+
+  return ChoiceRequirement(
+    items: _stringList(json['item'] ?? json['items'] ?? json['has_item']),
+    notItems: _stringList(json['not_item'] ?? json['without_item'] ?? json['missing_item']),
+    equipment: _stringList(json['equipment'] ?? json['gear']),
+    equipped: _stringList(json['equipped']),
+    evidence: _stringList(json['evidence']),
+    characters: _stringList(json['character'] ?? json['characters'] ?? json['class']),
+    flags: _stringList(json['flag'] ?? json['flags'] ?? json['has_flag']),
+    notFlags: _stringList(json['not_flag'] ?? json['not_flags'] ?? json['without_flag']),
+    stats: stats,
+  );
 }
 
 List<StoryImage> _parseImages(Map<String, dynamic> json) {

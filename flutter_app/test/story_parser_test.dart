@@ -371,6 +371,65 @@ void main() {
     expect(luck.modifier(9), 0);
   });
 
+  test('choice requirements parse: items, stats, flags, character', () {
+    final story = parseStoryGamebook({
+      'metadata': {'title': 'T', 'folder': 't', 'start_node': 'a'},
+      'nodes': [
+        {
+          'id': 'a',
+          'type': 'text',
+          'text': 'x',
+          'set_flags': ['met_goblin'],
+          'clear_flags': ['door_shut'],
+          'choices': [
+            {'text': 'Unlock', 'target': 'b', 'requires': {'item': 'iron_key'}},
+            {
+              'text': 'Bribe',
+              'target': 'b',
+              'requires': {'stat': {'gold': {'gt': 26}}},
+              'locked_text': 'Bribe (need 27 gold)',
+            },
+            {'text': 'Gloat', 'target': 'b', 'requires': {'flag': 'killed_worm'}},
+            {'text': 'Ward', 'target': 'b', 'requires': {'character': 'witch'}},
+            {'text': 'Plain', 'target': 'b'},
+          ],
+        },
+        {'id': 'b', 'type': 'text', 'text': 'y'},
+      ],
+    });
+
+    final node = story.node('a');
+    expect(node.setFlags, ['met_goblin']);
+    expect(node.clearFlags, ['door_shut']);
+    expect(node.choices[0].requires!.items, ['iron_key']);
+    // gt: 26 becomes min 27
+    expect(node.choices[1].requires!.stats['gold']!.min, 27);
+    expect(node.choices[1].requires!.stats['gold']!.test(27), true);
+    expect(node.choices[1].requires!.stats['gold']!.test(26), false);
+    expect(node.choices[1].lockedText, 'Bribe (need 27 gold)');
+    expect(node.choices[2].requires!.flags, ['killed_worm']);
+    expect(node.choices[3].requires!.characters, ['witch']);
+    expect(node.choices[4].requires, isNull);
+  });
+
+  test('map locations can carry requirements', () {
+    final story = parseStoryGamebook({
+      'metadata': {'title': 'T', 'folder': 't', 'start_node': 'hub'},
+      'nodes': [
+        {
+          'id': 'hub',
+          'type': 'map',
+          'text': 'Where to?',
+          'locations': [
+            {'title': 'Locked wing', 'target': 'wing', 'requires': {'not_flag': 'wing_sealed'}},
+          ],
+        },
+        {'id': 'wing', 'type': 'text', 'text': 'w'},
+      ],
+    });
+    expect(story.node('hub').mapLocations.single.requires!.notFlags, ['wing_sealed']);
+  });
+
   test('characters parse with stats, gear, and combat hit/damage stats', () {
     final story = parseStoryGamebook({
       'metadata': {'title': 'T', 'folder': 't', 'start_node': 'start'},

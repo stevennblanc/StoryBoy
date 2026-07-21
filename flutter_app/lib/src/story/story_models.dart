@@ -183,6 +183,8 @@ class StoryNode {
     this.combat,
     this.shop,
     this.statChanges = const [],
+    this.setFlags = const [],
+    this.clearFlags = const [],
     this.acceptedAnswers = const [],
     this.correctTargetId,
     this.incorrectTargetId,
@@ -205,6 +207,11 @@ class StoryNode {
   final CombatConfig? combat;
   final ShopConfig? shop;
   final List<StatChange> statChanges;
+
+  /// Story flags raised / cleared when this node is entered. Flags are free-form
+  /// (no declaration needed) and drive conditional choices.
+  final List<String> setFlags;
+  final List<String> clearFlags;
   final List<String> acceptedAnswers;
   final String? correctTargetId;
   final String? incorrectTargetId;
@@ -332,10 +339,74 @@ class CombatConfig {
 }
 
 class StoryChoice {
-  const StoryChoice({required this.text, required this.targetId});
+  const StoryChoice({
+    required this.text,
+    required this.targetId,
+    this.requires,
+    this.lockedText,
+  });
 
   final String text;
   final String targetId;
+
+  /// When set, the choice only appears once these conditions are met.
+  final ChoiceRequirement? requires;
+
+  /// When set, an unmet choice is shown disabled with this hint instead of
+  /// being hidden entirely.
+  final String? lockedText;
+}
+
+/// A numeric comparison against a stat's effective value.
+class StatCondition {
+  const StatCondition({this.min, this.max, this.equals});
+
+  final int? min;
+  final int? max;
+  final int? equals;
+
+  bool test(int value) {
+    if (min != null && value < min!) return false;
+    if (max != null && value > max!) return false;
+    if (equals != null && value != equals!) return false;
+    return true;
+  }
+}
+
+/// Conditions gating a choice or map location. All listed predicates must pass.
+class ChoiceRequirement {
+  const ChoiceRequirement({
+    this.items = const [],
+    this.notItems = const [],
+    this.equipment = const [],
+    this.equipped = const [],
+    this.evidence = const [],
+    this.characters = const [],
+    this.flags = const [],
+    this.notFlags = const [],
+    this.stats = const {},
+  });
+
+  final List<String> items;
+  final List<String> notItems;
+  final List<String> equipment;
+  final List<String> equipped;
+  final List<String> evidence;
+  final List<String> characters;
+  final List<String> flags;
+  final List<String> notFlags;
+  final Map<String, StatCondition> stats;
+
+  bool get isEmpty =>
+      items.isEmpty &&
+      notItems.isEmpty &&
+      equipment.isEmpty &&
+      equipped.isEmpty &&
+      evidence.isEmpty &&
+      characters.isEmpty &&
+      flags.isEmpty &&
+      notFlags.isEmpty &&
+      stats.isEmpty;
 }
 
 class StoryImage {
@@ -346,11 +417,19 @@ class StoryImage {
 }
 
 class MapLocation {
-  const MapLocation({required this.title, required this.description, required this.targetId});
+  const MapLocation({
+    required this.title,
+    required this.description,
+    required this.targetId,
+    this.requires,
+    this.lockedText,
+  });
 
   final String title;
   final String description;
   final String targetId;
+  final ChoiceRequirement? requires;
+  final String? lockedText;
 }
 
 /// Shared shape for inventory items, evidence entries, and equipment. The
