@@ -64,6 +64,26 @@ class ProgressStore {
     );
   }
 
+  /// Charges spent on usable items, stored as "itemId=count" pairs.
+  Map<String, int> spentUses(String bookId) {
+    final raw = _prefs.getStringList('progress.$bookId.uses') ?? const [];
+    final result = <String, int>{};
+    for (final pair in raw) {
+      final index = pair.indexOf('=');
+      if (index <= 0) continue;
+      final count = int.tryParse(pair.substring(index + 1));
+      if (count != null) result[pair.substring(0, index)] = count;
+    }
+    return result;
+  }
+
+  Future<void> saveSpentUses(String bookId, Map<String, int> spent) async {
+    await _prefs.setStringList(
+      'progress.$bookId.uses',
+      [for (final entry in spent.entries) '${entry.key}=${entry.value}'],
+    );
+  }
+
   /// Free-form story flags raised during this playthrough.
   Set<String> flags(String bookId) {
     return (_prefs.getStringList('progress.$bookId.flags') ?? const []).toSet();
@@ -90,6 +110,7 @@ class ProgressStore {
     await _prefs.remove('progress.$bookId.map');
     await _prefs.remove('progress.$bookId.stats');
     await _prefs.remove('progress.$bookId.flags');
+    await _prefs.remove('progress.$bookId.uses');
     await _prefs.remove('progress.$bookId.character');
   }
 

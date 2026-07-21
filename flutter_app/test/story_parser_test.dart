@@ -430,6 +430,41 @@ void main() {
     expect(story.node('hub').mapLocations.single.requires!.notFlags, ['wing_sealed']);
   });
 
+  test('usable items parse their effects, charges, and verb', () {
+    final story = parseStoryGamebook({
+      'metadata': {'title': 'T', 'folder': 't', 'start_node': 'start'},
+      'stats': [
+        {'id': 'hp', 'role': 'health', 'start': 10, 'max': 12},
+      ],
+      'inventory': [
+        {
+          'id': 'tonic',
+          'title': 'Brine Tonic',
+          'use': {'hp': 6},
+          'uses': 2,
+          'use_label': 'Drink',
+          'use_text': 'It burns going down.',
+        },
+        {'id': 'rope', 'title': 'Rope'},
+      ],
+      'nodes': [
+        {'id': 'start', 'type': 'text', 'text': 's'},
+      ],
+    });
+    final tonic = story.inventoryCatalog['tonic']!;
+    expect(tonic.isUsable, isTrue);
+    expect(tonic.useEffects, {'hp': 6});
+    expect(tonic.uses, 2);
+    expect(tonic.useLabel, 'Drink');
+    expect(tonic.useText, 'It burns going down.');
+
+    // An item with no use block is not usable, and defaults stay sane.
+    final rope = story.inventoryCatalog['rope']!;
+    expect(rope.isUsable, isFalse);
+    expect(rope.uses, 1);
+    expect(rope.useLabel, 'Use');
+  });
+
   test('not_character excludes the chosen class', () {
     final story = parseStoryGamebook({
       'metadata': {'title': 'T', 'folder': 't', 'start_node': 'start'},

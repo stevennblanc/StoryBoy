@@ -628,6 +628,11 @@ CollectionItem _parseCollectionItem(dynamic raw) {
     effectsRaw?.forEach((key, value) {
       if (value is num) effects[key as String] = value.toInt();
     });
+    final useRaw = (json['use'] ?? json['use_effects'] ?? json['on_use']) as Map?;
+    final useEffects = <String, int>{};
+    useRaw?.forEach((key, value) {
+      if (value is num) useEffects[key as String] = value.toInt();
+    });
     return CollectionItem(
       id: id,
       title: ((json['title'] as String?) ?? '').trim().isEmpty ? _displayTitle(id) : json['title'] as String,
@@ -639,6 +644,10 @@ CollectionItem _parseCollectionItem(dynamic raw) {
       damage: _firstString(json, ['damage', 'damage_dice']),
       damageBonus: _firstInt(json, ['damage_bonus']) ?? 0,
       hitBonus: _firstInt(json, ['hit_bonus', 'to_hit_bonus']) ?? 0,
+      useEffects: useEffects,
+      uses: _firstInt(json, ['uses', 'charges']) ?? 1,
+      useLabel: _firstString(json, ['use_label', 'use_verb']) ?? 'Use',
+      useText: (json['use_text'] as String?) ?? '',
     );
   }
   final id = raw.toString();

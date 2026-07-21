@@ -466,6 +466,41 @@ Feed ability scores into play:
 - `start_node` is optional (defaults to `metadata.start_node`).
 - When a book defines no `characters`, there is no selection screen — the player simply is the story's character, defined by the stats and prose.
 
+## Usable Items (Consumables)
+
+An inventory item with a `use` block can be spent from the collection panel — healing potions, a charge of something, anything that moves a stat on demand.
+
+```json
+{
+  "inventory": [
+    {
+      "id": "brine_tonic",
+      "title": "Brine Tonic",
+      "description": "A stoppered vial of something green.",
+      "use": { "hp": 6 },
+      "uses": 1,
+      "use_label": "Drink",
+      "use_text": "It burns going down, and the ache in your ribs dulls."
+    },
+    {
+      "id": "keepers_draught",
+      "title": "Keeper's Draught",
+      "use": { "hp": 9 },
+      "uses": 2,
+      "use_label": "Drink"
+    }
+  ]
+}
+```
+
+- The presence of `use` is what makes an item usable; without it an item is just something you carry.
+- `use` values are stat deltas, clamped to `[0, max]` like every other stat change — drinking a 6-point tonic when 2 short of full heals 2, and the rest is wasted. Negative values work too (a cursed relic).
+- `uses` is the number of charges (default `1`). The button shows the count remaining when there is more than one, and the item leaves the bag once spent. Remaining charges are saved with the playthrough.
+- `use_label` renames the verb — `Drink`, `Read`, `Burn`, `Deploy` — following the same opt-in/rename model as every other system.
+- Prefer defining usable items in the top-level `inventory[]` catalog. The catalog is authoritative for use data, so an item granted anywhere as a bare `"brine_tonic"` string still knows how to be drunk.
+
+Items can be sold in shops with `{ "inventory": "brine_tonic", "price": 12 }`, which is how a book turns gold into staying power.
+
 ## Opt-in and renaming
 
 Every system — collections, equipment, stats, currency, checks, combat, shops — is off until a book uses it, and every label has a default the book can override. A simple story that defines no stats and uses no combat shows none of it. This keeps genres from bleeding UI into each other: a detective book shows "Evidence," a dungeon shows "Health / Armor Class / Gold / Equipment," a travel comedy shows nothing extra. A sci-fi book can rename Armor Class to "Shields", gold to "Credits", and equipment to "Loadout" with pure label overrides.

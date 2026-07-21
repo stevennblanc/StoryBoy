@@ -48,8 +48,8 @@ The engine is already structured for this: the format is declarative, every refe
 
 Measured against the 95-node 0.6.0 book. These are cheap now and expensive to retrofit across ~200 nodes.
 
-1. **Consumable items (healing).** No node in the Vault restores Health, and the engine has no way to *use* an item — inventory entries are passive. A long dungeon needs an attrition-and-recovery arc or it is just a pass/fail gauntlet. Needs an engine feature (a `use` action on an inventory item with `stat_changes` and a charge count), then content.
-2. **A book validator.** Ad-hoc assertions in throwaway scripts already strain at 95 nodes. Before 200: unreachable nodes, dead ends that are not intended endings, missing targets, `requires` naming unknown items/flags/characters, flags set but never read, and stat ids that do not exist. Cheap to write, pays for itself immediately, and is the same contract the visual builder will need.
+1. **Consumable items (healing).** — SHIPPED (0.29.0). An inventory item with a `use` block is spendable from the bag, with its own verb and charge count, clamped and persisted. The Vault gained a Brine Tonic and a Keeper's Draught, sold at both traders and hidden in the ruin.
+2. **A book validator.** — SHIPPED. `scripts/validate_gamebook.py`, documented in `AUTHORING_REFERENCE.md`. It found a live bug on its first run: the Vault's merchant sold a `torch_bundle` that the book never defined.
 3. **Decide the economy before writing it.** Today: 302 gold earnable during play against 92 gold of purchasable goods — a 3.3x oversupply, which is why gold stops being a decision partway through. Set the target ratio and the sinks (selling, consumables, repairs, tolls) *before* authoring rewards, or every reward gets renumbered later.
 
 ## Art debt

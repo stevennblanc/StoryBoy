@@ -72,6 +72,19 @@ Nodes change stats with `stat_changes{ id: delta }` (add/subtract) and `set_stat
 
 A top-level `characters[]` list offers pre-made protagonists at the start. Each: `id`, `name`, `description`, optional `image`, `stats{}` (starting overrides), `equipment[]` (granted ids), `equipped{}` (slot→id), optional `start_node`. No list = no selection screen.
 
+### Usable items (consumables)
+
+Any inventory entry with a `use` block becomes usable from the collection panel:
+
+| Field | Meaning | Default |
+| --- | --- | --- |
+| `use` | Stat deltas applied when used, e.g. `{ "hp": 6 }`. Its presence is what makes the item usable. | none |
+| `uses` | Charges before the item is spent and leaves the bag. | `1` |
+| `use_label` | The verb on the button — `Drink`, `Read`, `Burn`. | `Use` |
+| `use_text` | A line shown after using it. | none |
+
+Changes are clamped to `[0, max]` like any stat change, so a 6-point tonic at 2 health short of full heals 2. Remaining charges persist with the playthrough. Put the `use` block in the top-level `inventory[]` catalog where possible: the catalog is authoritative, so an item granted as a bare id string anywhere in the book still knows how to be used.
+
 ### Equipment items
 
 Equipment entries (in the `equipment[]` catalog or granted inline) add:
@@ -100,5 +113,15 @@ Top-level `map[]` entries are `{ id, title, image }`. Nodes reveal them with `re
 
 - Stat role `health` is required for any book that uses combat death; `armor` is required for armor to matter in combat.
 - Only one stat should carry each role.
+
+## Validating a book
+
+```
+python scripts/validate_gamebook.py web/store/the-sunken-vault.gbk
+```
+
+Accepts a `.gbk` or a bare `story.json`, and several at once. **Errors** mean the book is broken — a target that names no node, a shop selling an item nothing defines, a `requires` naming an unknown item/flag/character/stat, a stat change to a stat that was never declared, an image missing from the package, or a non-`text` node with no way out. **Warnings** are probably mistakes: unreachable nodes, and flags that are set but never read. Exit code is 1 if there were errors, so it can gate a release.
+
+Run it before packaging. It catches the class of mistake that is invisible by eye once a book passes a few dozen nodes.
 
 _When a node type, field, or system is added or changed, update this file and `GAMEBOOK_FORMAT.md` together._

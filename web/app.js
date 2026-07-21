@@ -31,6 +31,8 @@ const state = {
   map: [],
   flags: [],
   stats: {},
+  spentUses: {},
+  itemMessage: "",
   checkResult: null,
   enemyHp: null,
   combatLog: [],
@@ -603,6 +605,8 @@ async function openBook(book) {
     state.equippedBySlot = progress?.equippedBySlot || {};
     state.map = progress?.map || [];
     state.flags = progress?.flags || [];
+    state.spentUses = progress?.spentUses || {};
+    state.itemMessage = "";
     state.chosenCharacter = progress?.chosenCharacter || null;
     const savedStats = progress?.stats || {};
     state.stats = {};
@@ -693,7 +697,7 @@ function renderReader() {
 
   const imageHtml = renderNodeImages(node, gamebook);
   const inventoryPanel = gamebook.inventoryConfig.enabled
-    ? renderGainPanel(gamebook.inventoryConfig.label, state.inventory, gamebook)
+    ? renderGainPanel(gamebook.inventoryConfig.label, state.inventory, gamebook, state.itemMessage)
     : "";
   const equipmentPanel = gamebook.equipmentConfig.enabled
     ? renderEquipmentPanel(gamebook.equipmentConfig.label, state.equipment)
@@ -794,29 +798,91 @@ function renderCollectionChip(config, count) {
   return `<span class="chip">${escapeHtml(text)}</span>`;
 }
 
-function renderGainPanel(label, items, gamebook) {
+function renderGainPanel(label, items, gamebook, message = "") {
   if (!items.length) return "";
   const rows = items.map((item) => {
     const summary = `<strong>${escapeHtml(item.title || item.id)}</strong>${item.description ? `<br><span class="muted">${escapeHtml(item.description)}</span>` : ""}`;
     const imageSrc = item.image ? gamebook.imageUrls.get(item.image) : null;
     const detail = item.detail || "";
+    const spec = resolveItem(item);
+    const useButton = usableEffects(spec)
+      ? `<button class="secondary-button" type="button" data-use="${escapeAttribute(item.id)}">${escapeHtml(useLabelOf(spec))}${itemUses(spec) > 1 ? ` (${usesLeft(spec)})` : ""}</button>`
+      : "";
     if (!imageSrc && !detail) {
-      return `<p>${summary}</p>`;
+      return `<div class="shop-row"><div>${summary}</div>${useButton}</div>`;
     }
     return `
-      <details class="collection-item">
-        <summary>${summary}</summary>
-        ${imageSrc ? `<img class="reader-image" src="${escapeAttribute(imageSrc)}" alt="">` : ""}
-        ${detail ? `<p class="reader-text">${escapeHtml(detail)}</p>` : ""}
-      </details>
+      <div class="shop-row">
+        <details class="collection-item">
+          <summary>${summary}</summary>
+          ${imageSrc ? `<img class="reader-image" src="${escapeAttribute(imageSrc)}" alt="">` : ""}
+          ${detail ? `<p class="reader-text">${escapeHtml(detail)}</p>` : ""}
+        </details>
+        ${useButton}
+      </div>
     `;
   }).join("");
   return `
     <section class="panel">
       <h3>${escapeHtml(label)}</h3>
+      ${message ? `<p class="muted">${escapeHtml(message)}</p>` : ""}
       ${rows}
     </section>
   `;
+}
+
+// Use data lives in the catalog, so a saved playthrough or an inline grant that
+// stored only the bare item still knows how to be used. Same reason
+// equipmentItem() exists for looted gear.
+function resolveItem(item) {
+  return state.activePackage?.inventory?.get(item.id) || item;
+}
+
+function usableEffects(item) {
+  const raw = item.use || item.use_effects || item.on_use;
+  return raw && typeof raw === "object" ? raw : null;
+}
+
+function useLabelOf(item) {
+  return item.use_label || item.use_verb || "Use";
+}
+
+function itemUses(item) {
+  const n = item.uses ?? item.charges;
+  return typeof n === "number" && n > 0 ? n : 1;
+}
+
+function usesLeft(item) {
+  return Math.max(0, itemUses(item) - (state.spentUses[item.id] || 0));
+}
+
+/// Spend one charge: apply its effects, then drop it once it is used up.
+function useItem(itemId) {
+  const gamebook = state.activePackage;
+  const owned = state.inventory.find((x) => x.id === itemId);
+  if (!gamebook || !owned) return;
+  const item = resolveItem(owned);
+  const effects = usableEffects(item);
+  if (!effects || usesLeft(item) <= 0) return;
+
+  const labels = new Map(gamebook.statDefs.map((d) => [d.id, d.label]));
+  const gained = [];
+  for (const [id, delta] of Object.entries(effects)) {
+    if (typeof delta !== "number") continue;
+    const before = state.stats[id] ?? 0;
+    applyStatDelta(gamebook, id, delta);
+    const change = (state.stats[id] ?? 0) - before;
+    if (change !== 0) gained.push(`${change > 0 ? "+" : ""}${change} ${labels.get(id) || id}`);
+  }
+
+  const spent = (state.spentUses[item.id] || 0) + 1;
+  state.spentUses[item.id] = spent;
+  if (spent >= itemUses(item)) {
+    state.inventory = state.inventory.filter((x) => x.id !== item.id);
+  }
+  const effect = gained.length ? ` (${gained.join(", ")})` : "";
+  state.itemMessage = item.use_text ? `${item.use_text}${effect}` : `${useLabelOf(item)} ${item.title || item.id}.${effect}`;
+  render();
 }
 
 function renderEquipmentPanel(label, items) {
@@ -1057,6 +1123,9 @@ function wireReaderActions(node) {
   app.querySelector("[data-roll-check]")?.addEventListener("click", () => rollCheck(node));
   app.querySelector("[data-combat-attack]")?.addEventListener("click", () => combatRound(node));
   app.querySelector("[data-combat-flee]")?.addEventListener("click", () => fleeCombat(node));
+  app.querySelectorAll("[data-use]").forEach((button) => {
+    button.addEventListener("click", () => useItem(button.dataset.use));
+  });
   app.querySelectorAll("[data-equip]").forEach((button) => {
     button.addEventListener("click", () => toggleEquip(button.dataset.equip));
   });
@@ -1078,6 +1147,7 @@ function enterNode(nodeId) {
   if (!gamebook) return;
   state.lastBattle = null;
   state.checkResult = null;
+  state.itemMessage = "";
   state.combatLog = [];
   state.combatEnd = null;
   state.enemyHp = null;
@@ -1222,15 +1292,21 @@ function toggleEquip(itemId) {
   renderReader();
 }
 
+/// Write a stat, clamped to [0, max]. The single place stat values are set.
+function setStatClamped(gamebook, id, value) {
+  const def = (gamebook.statDefs || []).find((d) => d.id === id);
+  let next = value;
+  if (def && def.max != null && next > def.max) next = def.max;
+  if (next < 0) next = 0;
+  state.stats[id] = next;
+}
+
+function applyStatDelta(gamebook, id, delta) {
+  setStatClamped(gamebook, id, (state.stats[id] || 0) + delta);
+}
+
 function applyStatChanges(node, gamebook) {
-  const defs = new Map((gamebook.statDefs || []).map((def) => [def.id, def]));
-  const setStat = (id, value) => {
-    const def = defs.get(id);
-    let next = value;
-    if (def && def.max != null && next > def.max) next = def.max;
-    if (next < 0) next = 0;
-    state.stats[id] = next;
-  };
+  const setStat = (id, value) => setStatClamped(gamebook, id, value);
   const add = node.stat_changes || node.adjust_stats || node.gain_stats;
   if (add && typeof add === "object") {
     for (const [id, value] of Object.entries(add)) {
@@ -1636,6 +1712,7 @@ function saveProgress() {
     map: state.map,
     flags: state.flags,
     stats: state.stats,
+    spentUses: state.spentUses,
     chosenCharacter: state.chosenCharacter,
   }));
 }

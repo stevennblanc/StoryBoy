@@ -32,12 +32,16 @@ class _ReaderScreenState extends State<ReaderScreen> {
   String? _chosenCharacterId;
   final Map<String, int> _stats = {};
   final Map<String, String> _equippedBySlot = {};
+
+  /// Charges already spent, per item id, so a two-dose tonic survives a reload.
+  final Map<String, int> _spentUses = {};
   BattleResult? _battleResult;
   _CheckOutcome? _checkOutcome;
   int? _enemyHp;
   final List<String> _combatLog = [];
   String? _combatEndTarget;
   String _shopMessage = '';
+  String _itemMessage = '';
   bool _showInventory = false;
   bool _showEvidence = false;
   bool _showEquipment = false;
@@ -84,6 +88,9 @@ class _ReaderScreenState extends State<ReaderScreen> {
         _equippedBySlot
           ..clear()
           ..addAll(progress.equipped(story.id));
+        _spentUses
+          ..clear()
+          ..addAll(progress.spentUses(story.id));
       });
       if (story.characters.isNotEmpty && savedNode == null) {
         setState(() => _selectingCharacter = true);
@@ -131,6 +138,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
       _combatLog.clear();
       _combatEndTarget = null;
       _shopMessage = '';
+      _itemMessage = '';
       _answerController.clear();
     });
   }
@@ -171,6 +179,51 @@ class _ReaderScreenState extends State<ReaderScreen> {
     widget.model.progress.saveEquipped(story.id, _equippedBySlot);
   }
 
+  /// How many uses an item has left; absent means it is untouched and still has
+  /// its full charge count.
+  int _usesLeft(CollectionItem item) => _spentUses[item.id] == null
+      ? item.uses
+      : (item.uses - _spentUses[item.id]!).clamp(0, item.uses);
+
+  /// Spend one charge: apply its effects, then drop it from the bag once spent.
+  void _useItem(CollectionItem item) {
+    final story = _story;
+    if (story == null || !item.isUsable || _usesLeft(item) <= 0) return;
+
+    final before = {for (final id in item.useEffects.keys) id: _stats[id] ?? 0};
+    _applyStatChanges(
+      story,
+      [for (final entry in item.useEffects.entries) StatChange(statId: entry.key, amount: entry.value)],
+    );
+    final gained = <String>[];
+    final labels = {for (final stat in story.stats) stat.id: stat.label};
+    for (final entry in before.entries) {
+      final delta = (_stats[entry.key] ?? 0) - entry.value;
+      if (delta != 0) {
+        gained.add('${delta > 0 ? '+' : ''}$delta ${labels[entry.key] ?? entry.key}');
+      }
+    }
+
+    final spent = (_spentUses[item.id] ?? 0) + 1;
+    final exhausted = spent >= item.uses;
+    setState(() {
+      _spentUses[item.id] = spent;
+      if (exhausted) {
+        _inventoryIds = {..._inventoryIds}..remove(item.id);
+        if (_expandedItemId == item.id) _expandedItemId = null;
+      }
+      final effect = gained.isEmpty ? '' : ' (${gained.join(', ')})';
+      _itemMessage = item.useText.isNotEmpty
+          ? '${item.useText}$effect'
+          : '${item.useLabel} ${item.title}.$effect';
+    });
+
+    final progress = widget.model.progress;
+    progress.saveStats(story.id, _stats);
+    progress.saveSpentUses(story.id, _spentUses);
+    if (exhausted) progress.saveCollectedIds(story.id, 'inventory', _inventoryIds);
+  }
+
   void _applyStatChanges(StoryGamebook story, List<StatChange> changes) {
     if (changes.isEmpty) return;
     final byId = {for (final stat in story.stats) stat.id: stat};
@@ -195,6 +248,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     _flags = {};
     _chosenCharacterId = null;
     _equippedBySlot.clear();
+    _spentUses.clear();
     _stats.clear();
     for (final stat in story.stats) {
       _stats[stat.id] = stat.start;
@@ -495,7 +549,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
                       _statBar(story),
                       _collectionBar(story),
                       if (_showInventory && story.inventoryConfig.enabled)
-                        _collectionPanel(story.inventoryConfig.label, _collectedInventory),
+                        _collectionPanel(story.inventoryConfig.label, _collectedInventory,
+                            message: _itemMessage),
                       if (_showEquipment && story.equipmentConfig.enabled)
                         _equipmentPanel(story.equipmentConfig.label, _collectedEquipment),
                       if (_showMap && story.mapConfig.enabled)
@@ -668,7 +723,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     return widgets;
   }
 
-  Widget _collectionPanel(String title, List<CollectionItem> items) {
+  Widget _collectionPanel(String title, List<CollectionItem> items, {String message = ''}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
@@ -681,6 +736,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          if (message.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(message, style: mutedStyle),
+            ),
           const SizedBox(height: 8),
           for (final item in items) _collectionEntry(item),
         ],
@@ -786,6 +846,25 @@ class _ReaderScreenState extends State<ReaderScreen> {
                 Expanded(
                   child: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
                 ),
+                if (item.isUsable) ...[
+                  Text(
+                    item.uses > 1 ? '${_usesLeft(item)} left' : '',
+                    style: mutedStyle,
+                  ),
+                  const SizedBox(width: 8),
+                  // The theme's full-width minimumSize would collapse the title
+                  // beside it, so this button sizes to its own label.
+                  FilledButton(
+                    onPressed: _usesLeft(item) > 0 ? () => _useItem(item) : null,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 34),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                    child: Text(item.useLabel),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 if (item.hasMore) Text(expanded ? 'Close' : 'View', style: mutedStyle),
               ],
             ),

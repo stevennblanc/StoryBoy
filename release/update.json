@@ -1,6 +1,6 @@
 {
-  "versionCode": 33,
-  "versionName": "0.28.0",
+  "versionCode": 34,
+  "versionName": "0.29.0",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "The Sunken Vault now begins with a choice of delver - Kell the sellsword, Sorrel the tomb-robber, or Vane the tide-touched - each with their own portrait, stats, starting gear, and ways through the vault only they can take. Choices can now also exclude a class with not_character."
+  "releaseNotes": "Items can now be used. A book can give an item a use block - a healing tonic, a charge of something - with its own verb and number of charges, spent from your bag and saved with your playthrough. The Sunken Vault gains a Brine Tonic and a Keeper's Draught, sold at both traders and hidden in the ruin, so a bad fight is survivable instead of fatal."
 }

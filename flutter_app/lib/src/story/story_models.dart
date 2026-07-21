@@ -463,6 +463,10 @@ class CollectionItem {
     this.damage,
     this.damageBonus = 0,
     this.hitBonus = 0,
+    this.useEffects = const {},
+    this.uses = 1,
+    this.useLabel = 'Use',
+    this.useText = '',
   });
 
   final String id;
@@ -484,8 +488,22 @@ class CollectionItem {
   final int damageBonus;
   final int hitBonus;
 
+  /// Stat deltas applied when the player uses this item (e.g. {"hp": 6}).
+  /// An item with no use effects cannot be used.
+  final Map<String, int> useEffects;
+
+  /// How many times it can be used before it is spent and leaves the bag.
+  final int uses;
+
+  /// Verb shown on the button, so a book can say Drink, Read, or Burn.
+  final String useLabel;
+
+  /// A line shown after using it.
+  final String useText;
+
   bool get hasMore => detail.isNotEmpty || image != null;
   bool get isEquippable => slot != null;
+  bool get isUsable => useEffects.isNotEmpty;
 
   CollectionItem copyWith({String? image}) => CollectionItem(
         id: id,
@@ -498,6 +516,10 @@ class CollectionItem {
         damage: damage,
         damageBonus: damageBonus,
         hitBonus: hitBonus,
+        useEffects: useEffects,
+        uses: uses,
+        useLabel: useLabel,
+        useText: useText,
       );
 }
 
