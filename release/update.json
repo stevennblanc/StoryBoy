@@ -1,6 +1,6 @@
 {
-  "versionCode": 31,
-  "versionName": "0.26.0",
+  "versionCode": 32,
+  "versionName": "0.27.0",
   "apkUrl": "https://github.com/stevennblanc/StoryBoy/releases/latest/download/storyboy-debug.apk",
-  "releaseNotes": "New: conditional choices. A choice can now require an item, equipment, a stat value, a story flag, or the character you chose - hidden until you qualify, or shown locked with a hint. Story flags let authors stop repeatable loops. The Ashen Crossroads gains character portraits and a hedge-witch-only path."
+  "releaseNotes": "Books can now open with a prologue and a How to play section, the way a printed gamebook front-loads its rules. The Sunken Vault and The Ashen Crossroads both start this way. Lore pages render their sections with headings instead of one block of text."
 }

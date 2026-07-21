@@ -356,14 +356,18 @@ StoryNode _parseCombatNode(Map<String, dynamic> json, String id) {
 
 StoryNode _parseLoreNode(Map<String, dynamic> json, String id) {
   final entries = json['entries'];
+  final loreEntries = <LoreEntry>[];
   final buffer = StringBuffer();
   if (entries is List) {
     for (final raw in entries) {
       final entry = (raw as Map).cast<String, dynamic>();
+      final title = (entry['title'] as String?) ?? '';
+      final body = (entry['text'] as String?) ?? '';
+      loreEntries.add(LoreEntry(title: title, text: body));
       if (buffer.isNotEmpty) buffer.write('\n\n');
-      buffer.write((entry['title'] as String?) ?? '');
+      buffer.write(title);
       buffer.write('\n');
-      buffer.write((entry['text'] as String?) ?? '');
+      buffer.write(body);
     }
   } else {
     buffer.write((json['text'] as String?) ?? '');
@@ -374,6 +378,7 @@ StoryNode _parseLoreNode(Map<String, dynamic> json, String id) {
     id: id,
     type: 'lore',
     text: buffer.toString(),
+    loreEntries: loreEntries,
     images: _parseImages(json),
     choices: returnTo.isEmpty ? const [] : [StoryChoice(text: 'Continue', targetId: returnTo)],
     inventoryGained: _parseGained(json, _inventoryKeys),

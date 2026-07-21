@@ -166,11 +166,21 @@ class StatChange {
   final bool set;
 }
 
+/// One titled section of a `lore` node. Rendered as its own headed block so a
+/// multi-part page (a journal, a "how to play" section) stays readable.
+class LoreEntry {
+  const LoreEntry({required this.title, required this.text});
+
+  final String title;
+  final String text;
+}
+
 class StoryNode {
   const StoryNode({
     required this.id,
     required this.type,
     required this.text,
+    this.loreEntries = const [],
     this.images = const [],
     this.choices = const [],
     this.inventoryGained = const [],
@@ -193,6 +203,10 @@ class StoryNode {
   final String id;
   final String type;
   final String text;
+
+  /// Titled sections for `lore` nodes; empty for every other type, in which
+  /// case [text] carries the whole body.
+  final List<LoreEntry> loreEntries;
   final List<StoryImage> images;
   final List<StoryChoice> choices;
   final List<CollectionItem> inventoryGained;

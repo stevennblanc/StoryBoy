@@ -503,10 +503,13 @@ class _ReaderScreenState extends State<ReaderScreen> {
                         _collectionPanel(story.evidenceConfig.label, _collectedEvidence),
                       for (final image in node.images) _storyImage(image),
                       const SizedBox(height: 8),
-                      Text(
-                        node.text,
-                        style: readerTextStyle.copyWith(fontSize: readerTextStyle.fontSize! * fontScale),
-                      ),
+                      if (node.loreEntries.isNotEmpty)
+                        ..._loreSections(node.loreEntries, readerTextStyle, fontScale)
+                      else
+                        Text(
+                          node.text,
+                          style: readerTextStyle.copyWith(fontSize: readerTextStyle.fontSize! * fontScale),
+                        ),
                       const SizedBox(height: 20),
                       ..._nodeActions(node),
                     ],
@@ -643,6 +646,25 @@ class _ReaderScreenState extends State<ReaderScreen> {
     }
     if (buttons.isEmpty) return const SizedBox.shrink();
     return Row(mainAxisAlignment: MainAxisAlignment.end, children: buttons);
+  }
+
+  /// Lore pages are made of titled sections; give each one a heading so a long
+  /// page (a journal, the how-to-play section) reads as parts rather than a slab.
+  List<Widget> _loreSections(List<LoreEntry> entries, TextStyle readerTextStyle, double fontScale) {
+    final bodyStyle = readerTextStyle.copyWith(fontSize: readerTextStyle.fontSize! * fontScale);
+    final widgets = <Widget>[];
+    for (final entry in entries) {
+      if (widgets.isNotEmpty) widgets.add(const SizedBox(height: 18));
+      if (entry.title.isNotEmpty) {
+        widgets.add(Text(
+          entry.title,
+          style: TextStyle(fontSize: 18 * fontScale, fontWeight: FontWeight.w600),
+        ));
+        widgets.add(const SizedBox(height: 6));
+      }
+      widgets.add(Text(entry.text, style: bodyStyle));
+    }
+    return widgets;
   }
 
   Widget _collectionPanel(String title, List<CollectionItem> items) {

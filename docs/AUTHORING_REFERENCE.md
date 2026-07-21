@@ -13,7 +13,7 @@ The author defines the character and world through the stats, labels, and prose.
 | Type | Purpose | Key fields |
 | --- | --- | --- |
 | `text` | Narrative, branching, endings. No `choices` = an ending. | `text`, `choices[]` (`text`, `target`) |
-| `lore` | Journals, records, optional reading. | `entries[]` (`title`, `text`), `return_to` |
+| `lore` | Journals, records, optional reading, instructions. Each entry renders as a titled section. | `entries[]` (`title`, `text`), `return_to` |
 | `puzzle` | Typed-answer challenge. | `question`, `answers[]`, `correct_target`, `incorrect_target` |
 | `inventory` | Scene whose purpose is gaining items. | `items[]`, `return_to` |
 | `evidence` | Scene whose purpose is gaining evidence. | `evidence[]`, `return_to` |
@@ -29,6 +29,16 @@ Any node may also carry: `image`/`images[]`, `stat_changes{}` / `set_stats{}`, `
 ### Conditional choices
 
 A choice or map location may carry `requires` (hidden until met) plus optional `locked_text` (shown disabled instead). Predicates, all of which must pass: `item` / `not_item`, `equipment`, `equipped`, `evidence`, `character` (chosen class), `flag` / `not_flag`, and `stat` numeric comparisons (`min`/`at_least`, `max`/`at_most`, `gt`, `lt`, `equals`, against the effective value). Story flags are free-form — set them with `set_flags` on any node, no declaration required; they're the standard way to stop repeatable loops.
+
+## Opening a book: prologue and instructions
+
+StoryBoy has no separate title screen — the book *is* the screen. The convention both launch books follow:
+
+1. `start_node` is a short **prologue**: the setting, the situation, and who the player is, in fiction. No mechanics talk.
+2. Its choices are the real opening (`Begin the descent`, `Take the road`) and **`How to play`**.
+3. `How to play` is a `lore` node whose `return_to` points back at the prologue, so reading the rules costs nothing and returns the player exactly where they were.
+
+Keep rules out of the prose and put them in that lore node — one entry per topic (your character, gear, tests, fighting, the map, dying). Books that use `characters[]` show the selection screen *before* the prologue, so the prologue can address a player who already knows who they are.
 
 ## Systems and their nameable variables
 

@@ -430,6 +430,28 @@ void main() {
     expect(story.node('hub').mapLocations.single.requires!.notFlags, ['wing_sealed']);
   });
 
+  test('lore nodes keep their entries as titled sections', () {
+    final story = parseStoryGamebook({
+      'metadata': {'title': 'T', 'folder': 't', 'start_node': 'start'},
+      'nodes': [
+        {
+          'id': 'start',
+          'type': 'lore',
+          'return_to': 'after',
+          'entries': [
+            {'title': 'Gear', 'text': 'Equip what you carry.'},
+            {'title': 'Fighting', 'text': 'A fight runs in rounds.'},
+          ],
+        },
+        {'id': 'after', 'type': 'text', 'text': 'a'},
+      ],
+    });
+    final node = story.node('start');
+    expect(node.loreEntries.map((e) => e.title), ['Gear', 'Fighting']);
+    expect(node.loreEntries.last.text, 'A fight runs in rounds.');
+    expect(node.choices.single.targetId, 'after');
+  });
+
   test('characters parse with stats, gear, and combat hit/damage stats', () {
     final story = parseStoryGamebook({
       'metadata': {'title': 'T', 'folder': 't', 'start_node': 'start'},
