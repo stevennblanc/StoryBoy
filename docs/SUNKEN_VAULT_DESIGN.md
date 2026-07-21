@@ -41,7 +41,7 @@ Walking wounded. Moves on his own, flinches from every fight, hides when it star
 | Tier | Place | What it is for | Crew | Rough nodes |
 | --- | --- | --- | --- | --- |
 | I | The Flooded Galleries | Arrival, outfitting, the first evidence that people died here. Scavenging tone, cold and procedural. | Odo dead, Sethe pinned | 60–70 — **written, 0.9.0** |
-| II | The Drowned Crypt | Cass found and the book gains a voice. The records begin explaining the keepers. Bleaker, stranger. | Cass, Ruen turned | 70–80 |
+| II | The Drowned Crypt | Cass found and the book gains a voice. The records begin explaining the keepers. Bleaker, stranger. | Cass, Ruen turned | 70–80 — **core written, 0.10.0** |
 | III | The Sanctum | The keepers' story completes and Ismene forces the choice. Quiet, not loud. | Ismene | 50–60 |
 
 Mostly one-way: descending is easy, climbing back is a deliberate cost. The way *out* at the end is its own sequence, and is where carrying Cass is felt hardest.
