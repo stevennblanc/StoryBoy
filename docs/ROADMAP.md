@@ -59,6 +59,10 @@ Measured against the 95-node 0.6.0 book. These are cheap now and expensive to re
    - **Never gate progress on gold alone.** Every toll has a free alternative — a fight, or a skill check — so a broke player is never stuck. Unaffordable tolls show locked with an in-fiction line, so the player sees what their purse cost them.
    - Numbers as of 0.8.0: 100 gold findable across the whole vault (was 302), 43 gold of goods at the mouth, 60 gold of tolls inside.
 
+## The Sunken Vault expansion
+
+Story shape is settled — see `SUNKEN_VAULT_DESIGN.md` for the spec. Premise: a crew went in a month ago and you were sent after them. Three descending tiers. An unreliable companion who is the trader's brother. The vault-keepers drowned their own vault. Target ~180–210 nodes, written against the settled economy above.
+
 ## Art debt
 
 - **The Sunken Vault cover and banner need regenerating.** The current art shows a lone armored man, but as of 0.6.0 the book lets you play Kell, Sorrel, or Vane — the cover contradicts two of the three. Regenerate with the figure **hooded and seen from behind**, the way The Ashen Crossroads cover was done, so it fits any chosen delver. Same green-and-gold palette and title treatment; only the figure changes.
