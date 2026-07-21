@@ -1368,14 +1368,14 @@ function rollCheck(node) {
   const dice = node.dice || node.roll || "1d20";
   const modifier = num(node.modifier ?? node.bonus, 0);
   const statMod = node.stat_modifier || node.modifier_stat || node.stat;
-  const bonus = statMod ? statBonus(statMod) : 0;
+  const statBonusValue = statMod ? statBonus(statMod) : 0;
   const rolls = rollDiceList(dice);
-  const total = rolls.reduce((sum, value) => sum + value, 0) + modifier + bonus;
+  const total = rolls.reduce((sum, value) => sum + value, 0) + modifier + statBonusValue;
   const need = num(node.target ?? node.difficulty ?? node.dc ?? node.against, 10);
   const success = total >= need;
   state.checkResult = {
     rolls,
-    bonus: modifier + statBonus,
+    bonus: modifier + statBonusValue,
     total,
     need,
     label: success ? (node.success_label || "Success") : (node.failure_label || "Failure"),

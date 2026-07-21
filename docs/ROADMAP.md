@@ -57,7 +57,7 @@ Measured against the 95-node 0.6.0 book. These are cheap now and expensive to re
    - **Gold rewards exploration, not killing.** Caches, hoards, and hidden niches pay. Corpses give gear and survival, not coin.
    - **Inside, gold buys passage — tolls and bribes.** Paying is never strictly better than fighting: it buys safety and costs you the loot the fight would have dropped.
    - **Never gate progress on gold alone.** Every toll has a free alternative — a fight, or a skill check — so a broke player is never stuck. Unaffordable tolls show locked with an in-fiction line, so the player sees what their purse cost them.
-   - Numbers as of 0.8.0: 100 gold findable across the whole vault (was 302), 43 gold of goods at the mouth, 60 gold of tolls inside.
+   - Numbers as of 0.9.0: 90 gold findable across the whole vault (was 302), 43 gold of goods at the mouth, 60 gold of tolls inside.
 
 ## The Sunken Vault expansion
 
